@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       owner: OWNER,
       repo: REPO,
       path: filePath,
-      message: `feat: 贡献新资料 - ${course}`,
+      message: `feat: 贡献新资料 - ${course}[skip ci]`,
       content: content, // 前端传来的 base64
       branch: newBranchName
     });
