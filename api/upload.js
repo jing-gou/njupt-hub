@@ -58,7 +58,7 @@ export default async function handler(req, res) {
 
     // 6. 上传文件到指定路径
     // 路径规则：public/uploads/课程名/文件名
-    const filePath = `public/uploads/${course}/${fileName}`;
+    const filePath = `public/uploads/${course}/${category}/${fileName}`;
     await octokit.repos.createOrUpdateFileContents({
       owner: OWNER,
       repo: REPO,
