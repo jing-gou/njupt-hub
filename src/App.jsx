@@ -1,37 +1,98 @@
-import { HashRouter, Routes, Route, Link } from 'react-router-dom';
+// App.jsx
+import React, { useState } from 'react';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import Home from './pages/Home';
 import Upload from './pages/Upload';
+import { Sun, Moon, Search, Upload as UploadIcon } from 'lucide-react';
+import Footer from './components/Footer';
 
-function App() {
+function AppContent() {
+  const [currentPage, setCurrentPage] = useState('home');
+  const { darkMode, toggleTheme } = useTheme();
+
   return (
-    <HashRouter>
-      {/* 导航栏 - 简洁学术风 */}
-      <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold tracking-tight text-slate-800">
-            NJUPT <span className="text-blue-600">Notes</span>
-          </Link>
-          <div className="flex gap-6 items-center">
-            <Link to="/" className="nav-link">找资料</Link>
-            <Link to="/upload" className="btn-primary">贡献资料</Link>
+   <div className={`min-h-screen flex flex-col transition-colors duration-500 ${
+      darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+    }`}>
+      {/* 顶部导航栏 */}
+      <nav className={`sticky top-0 z-40 backdrop-blur-lg border-b transition-colors ${
+        darkMode 
+          ? 'bg-slate-900/80 border-slate-800' 
+          : 'bg-white/80 border-slate-200'
+      }`}>
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          {/* Logo */}
+          <div className={`text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${
+            darkMode 
+              ? 'from-blue-400 to-purple-400' 
+              : 'from-blue-600 to-purple-600'
+          }`}>
+            NJUPT Notes
           </div>
+
+          {/* 导航按钮 */}
+          <div className={`flex items-center gap-2 p-1 rounded-lg ${
+            darkMode ? 'bg-slate-800' : 'bg-slate-100'
+          }`}>
+            <button
+              onClick={() => setCurrentPage('home')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${
+                currentPage === 'home'
+                  ? darkMode
+                    ? 'bg-slate-700 text-white'
+                    : 'bg-white text-slate-900 shadow-sm'
+                  : darkMode
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Search size={18} />
+              查找
+            </button>
+            <button
+              onClick={() => setCurrentPage('upload')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${
+                currentPage === 'upload'
+                  ? darkMode
+                    ? 'bg-slate-700 text-white'
+                    : 'bg-white text-slate-900 shadow-sm'
+                  : darkMode
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <UploadIcon size={18} />
+              上传
+            </button>
+          </div>
+
+          {/* 主题切换按钮 */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2.5 rounded-lg transition-all hover:scale-110 ${
+              darkMode 
+                ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700' 
+                : 'bg-white text-slate-700 hover:bg-slate-50 shadow-sm'
+            }`}
+          >
+            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
         </div>
       </nav>
 
-      {/* 主体内容区 */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/upload" element={<Upload />} />
-        </Routes>
+      {/* 页面内容 */}
+      <main className="min-h-[calc(100vh-73px)]">
+        {currentPage === 'home' ? <Home /> : <Upload />}
       </main>
-
-      {/* 页脚 */}
-      <footer className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-400 text-sm border-t border-gray-100">
-        <p>© 2026 NJUPT Notes · 仅供学术交流使用</p>
-      </footer>
-    </HashRouter>
+      <Footer darkMode={darkMode} />
+    </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}

@@ -5,12 +5,23 @@
   --color-brand-blue: #2563eb;
   --color-academic-gray: #374151;
   --font-serif: "Noto Serif SC", serif;
+  
+  /* 深色模式颜色 */
+  --color-dark-bg: #0f172a;
+  --color-dark-card: #1e293b;
+  --color-dark-border: #334155;
 }
 
 /* 基础样式微调 */
 @layer base {
   body {
-    @apply bg-gray-50 text-slate-900 antialiased;
+    @apply antialiased;
+    /* 移除固定背景色，让页面组件控制 */
+  }
+  
+  /* 平滑滚动 */
+  html {
+    scroll-behavior: smooth;
   }
 }
 
@@ -19,7 +30,30 @@
   .nav-link {
     @apply text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors;
   }
+  
   .btn-primary {
     @apply bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-all active:scale-95;
+  }
+  
+  /* 深色模式按钮 */
+  .btn-primary-dark {
+    @apply bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition-all active:scale-95;
+  }
+  
+  /* 自定义滚动条 */
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-2;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-600;
   }
 }
