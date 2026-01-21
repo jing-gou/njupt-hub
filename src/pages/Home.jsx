@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Folder, FileText, Download, ChevronRight, Loader2, RefreshCw, Search, Filter, ChevronDown, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, File, X } from 'lucide-react';
+import { Folder, Eye, FileText, Download, ChevronRight, Loader2, RefreshCw, Search, Github, Filter, ChevronDown, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, File, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { SiGithub } from '@icons-pack/react-simple-icons';
 
 export default function Home() {
   const { darkMode } = useTheme();
@@ -11,6 +12,10 @@ export default function Home() {
   const [showFilter, setShowFilter] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('全部');
   const [sortOrder, setSortOrder] = useState('default');
+  const isImage = (fileName) => /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+  const isPDF = (fileName) => /\.pdf$/i.test(fileName);
+  const [activePreview, setActivePreview] = useState(null);
+
   
   // 搜索联动状态
   const [isSearching, setIsSearching] = useState(false);
@@ -33,6 +38,10 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  const getOfficePreviewUrl = (fileUrl) => {
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fileUrl)}`;
+};
 
   useEffect(() => {
     fetchResources();
@@ -92,20 +101,37 @@ export default function Home() {
             {Object.entries(data.folders).map(([subFolderName, subData]) => (
               <FolderNode key={subFolderName} folderName={subFolderName} data={subData} path={fullPath} level={level + 1} />
             ))}
-            {data.files.map((file) => (
+            {data.files.map((file) => {
+            // 新增：判断是否支持预览
+            const isPreviewable = /\.(pdf|doc|docx|jpg|jpeg|png|gif|webp|ppt|pptx)$/i.test(file.fileName);
+
+            return (
               <div key={file.sha} className={`flex items-center justify-between p-4 transition-colors ${darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-white'}`} style={{ paddingLeft: `${4 + (level + 1) * 0.75}rem` }}>
-                <div className="flex items-center gap-3 overflow-hidden">
+                <div className="flex items-center gap-3 overflow-hidden flex-1">
                   {getFileIcon(file.fileName)}
                   <div className="truncate">
                     <p className={`text-sm font-medium truncate ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>{file.fileName}</p>
                     <p className={`text-xs ${darkMode ? 'text-slate-600' : 'text-slate-400'}`}>{file.size}</p>
                   </div>
                 </div>
-                <a href={file.path} target="_blank" rel="noopener noreferrer" className={`ml-4 p-2 rounded-lg transition-all ${darkMode ? 'text-blue-400 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'}`}>
-                  <Download size={18} />
-                </a>
+                
+                <div className="flex items-center gap-2">
+                  {/* 修改点：只有可预览文件才显示 Eye 按钮 */}
+                  {isPreviewable && (
+                    <button 
+                      onClick={() => setActivePreview(file)}
+                      className={`p-2 rounded-lg transition-all ${darkMode ? 'text-blue-400 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'}`}
+                    >
+                      <Eye size={18} />
+                    </button>
+                  )}
+                  
+                  <a href={file.path} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-lg transition-all ${darkMode ? 'text-blue-400 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'}`}>
+                    <Download size={18} />
+                  </a>
+                </div>
               </div>
-            ))}
+            )})};
           </div>
         )}
       </div>
@@ -168,7 +194,7 @@ export default function Home() {
       <p>正在检索文件树...</p>
     </div>
   );
-
+  
   return (
     <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
       
@@ -181,7 +207,7 @@ export default function Home() {
         </div>
 
         <div className="relative max-w-4xl mx-auto px-4 pt-20 pb-8 text-center">
-          <h1 className={`text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r transition-all duration-700 ${darkMode ? 'from-blue-400 to-pink-400' : 'from-blue-600 to-pink-600'} ${isSearching ? 'opacity-10 blur-md scale-90' : 'opacity-100'}`}>
+          <h1 className={`text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r transition-all duration-900 hover:scale-105 active:scale-95 ${darkMode ? 'from-blue-400 to-pink-400' : 'from-blue-600 to-pink-600'} ${isSearching ? 'opacity-10 blur-md scale-90' : 'opacity-100'}`}>
             NJUPT Notes
           </h1>
         <p className={`text-lg md:text-xl mb-12 transition-all duration-500 ${
@@ -205,20 +231,33 @@ export default function Home() {
           {/* 筛选按钮搜索时隐藏 */}
           <div className={`flex justify-center gap-3 mb-8 transition-all duration-500 ${isSearching ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
             <div className="relative">
-              <button onClick={() => setShowFilter(!showFilter)} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium shadow-lg ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700'}`}>
+              <button onClick={() => setShowFilter(!showFilter)} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700'}`}>
                 <Filter size={18} /> 筛选 <ChevronDown size={16} />
               </button>
               {showFilter && (
-                <div className={`absolute top-full mt-2 left-0 w-64 p-4 rounded-xl shadow-2xl border z-50 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                <div className={`absolute top-full mt-2 left-0 w-64 p-4 rounded-xl shadow-2xl border z-50  ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
                   {categories.map(cat => (
                     <button key={cat} onClick={() => setSelectedCategory(cat)} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${selectedCategory === cat ? 'bg-blue-500/20 text-blue-400' : ''}`}>{cat}</button>
                   ))}
                 </div>
               )}
             </div>
-            <button onClick={fetchResources} className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-lg ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700'}`}>
+            <button onClick={fetchResources} className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300 hover:scale-105 active:scale-95 ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700'}`}>
               <RefreshCw size={18} /> 刷新
             </button>
+            <a 
+              href="https://github.com/jing-gou/njupt-notes" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+                darkMode 
+                  ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700' 
+                  : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-100'
+              }`}
+            >
+              <Github size={18} />
+              <span>GitHub</span>
+            </a>            
           </div>
         </div>
       </div>
@@ -256,49 +295,61 @@ export default function Home() {
           </div>
         )}
       </div>
-        
+      {/* --- 统一预览弹窗 --- */}
+      {activePreview && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`relative w-full max-w-5xl h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
+            
+            {/* 弹窗头部 */}
+            <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <div className="flex items-center gap-3">
+                {getFileIcon(activePreview.fileName)}
+                <span className={`text-sm font-bold truncate max-w-xs md:max-w-xl ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                  预览: {activePreview.fileName}
+                </span>
+              </div>
+              <button 
+                onClick={() => setActivePreview(null)}
+                className="p-2 hover:bg-red-500/10 rounded-full group transition-colors"
+              >
+                <X size={20} className="text-slate-500 group-hover:text-red-500" />
+              </button>
+            </div>
+
+            {/* 弹窗内容区 */}
+            <div className="flex-1 bg-slate-100 dark:bg-slate-950 flex items-center justify-center overflow-hidden animate-modal">
+              {/\.(pdf)$/i.test(activePreview.fileName) ? (
+                /* --- PDF 直接预览方案 --- */
+                <iframe 
+                  src={`https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(activePreview.path)}`} 
+                  className="w-full h-full border-none"
+                  title="PDF Preview"
+                />
+              ) : /\.(doc|docx|ppt|pptx)$/i.test(activePreview.fileName) ? (
+                // PDF 和 Word 使用微软服务预览
+                <iframe 
+                  src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(activePreview.path)}`} 
+                  className="w-full h-full border-none"
+                  title="Document Preview"
+                />
+              ) : /\.(jpg|jpeg|png|gif|webp)$/i.test(activePreview.fileName) ? (
+                // 图片直接展示
+                <img 
+                  src={activePreview.path} 
+                  className="max-w-full max-h-full object-contain p-4 shadow-sm" 
+                  alt="Preview" 
+                />
+              ) : (
+                <div className="text-center text-slate-500">
+                  <p>暂不支持此文件类型的弹窗预览</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}  
     </div>
     
   );
-
-    {/* 页脚区域 */}
-    <footer className={`mt-auto py-12 border-t transition-all duration-700 ${
-    darkMode 
-        ? 'bg-slate-900/50 border-slate-800 text-slate-500' 
-        : 'bg-slate-50/50 border-slate-200 text-slate-400'
-    } ${
-    isSearching ? 'opacity-0 blur-lg pointer-events-none' : 'opacity-100'
-    }`}>
-    <div className="max-w-4xl mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-        
-        {/* 左侧：作者信息 */}
-        <div className="text-center md:text-left">
-            <p className="text-sm font-medium mb-1">
-            Developed by <span className={darkMode ? 'text-blue-400' : 'text-blue-600'}>Your Name / Team</span>
-            </p>
-            <p className="text-xs italic">
-            © 2024 - 2026 NJUPT Notes. All rights reserved.
-            </p>
-        </div>
-
-        {/* 右侧：免责声明简述 */}
-        <div className="max-w-xs text-center md:text-right">
-            <h4 className="text-xs font-bold uppercase tracking-wider mb-2">免责声明</h4>
-            <p className="text-[10px] leading-relaxed">
-            本站资料均来自互联网公开渠道或用户分享，仅供学习交流使用。
-            如有侵权，请联系删除。请勿用于任何商业用途。
-            </p>
-        </div>
-        
-        </div>
-
-        {/* 底部装饰线 */}
-        <div className="mt-8 flex justify-center gap-4">
-        <div className={`h-1 w-8 rounded-full ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
-        </div>
-    </div>
-    </footer>
-
-
+  
 }

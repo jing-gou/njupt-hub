@@ -11,6 +11,7 @@
     "gen": "node scripts/generate-index.js"
   },
   "dependencies": {
+    "@icons-pack/react-simple-icons": "^13.8.0",
     "@octokit/rest": "^22.0.1",
     "@tailwindcss/vite": "^4.1.18",
     "clsx": "^2.1.1",
