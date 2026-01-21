@@ -325,7 +325,7 @@ export default function Home() {
                   className="w-full h-full border-none"
                   title="PDF Preview"
                 />
-              ) : /\.(doc|docx|ppt|pptx)$/i.test(activePreview.fileName) ? (
+              ) : /\.(doc|docx|ppt|pptx|xlsx)$/i.test(activePreview.fileName) ? (
                 // PDF 和 Word 使用微软服务预览
                 <iframe 
                   src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(activePreview.path)}`} 
