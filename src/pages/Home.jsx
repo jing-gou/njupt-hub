@@ -103,7 +103,7 @@ export default function Home() {
             ))}
             {data.files.map((file) => {
             // 新增：判断是否支持预览
-            const isPreviewable = /\.(pdf|doc|docx|jpg|jpeg|png|gif|webp|ppt|pptx)$/i.test(file.fileName);
+            const isPreviewable = /\.(pdf|doc|docx|jpg|jpeg|png|gif|webp|ppt|pptx|xlsx)$/i.test(file.fileName);
 
             return (
               <div key={file.sha} className={`flex items-center justify-between p-4 transition-colors ${darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-white'}`} style={{ paddingLeft: `${4 + (level + 1) * 0.75}rem` }}>
@@ -325,7 +325,7 @@ export default function Home() {
                   className="w-full h-full border-none"
                   title="PDF Preview"
                 />
-              ) : /\.(doc|docx|ppt|pptx)$/i.test(activePreview.fileName) ? (
+              ) : /\.(doc|docx|ppt|pptx|xlsx)$/i.test(activePreview.fileName) ? (
                 // PDF 和 Word 使用微软服务预览
                 <iframe 
                   src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(activePreview.path)}`} 
