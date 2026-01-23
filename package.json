@@ -14,6 +14,7 @@
     "@icons-pack/react-simple-icons": "^13.8.0",
     "@octokit/rest": "^22.0.1",
     "@tailwindcss/vite": "^4.1.18",
+    "@vercel/analytics": "^1.6.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",

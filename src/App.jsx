@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Upload from './pages/Upload';
 import { Sun, Moon, Search, Upload as UploadIcon } from 'lucide-react';
 import Footer from './components/Footer';
+import { Analytics } from '@vercel/analytics/next';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -94,5 +95,19 @@ export default function App() {
     <ThemeProvider>
       <AppContent />
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="zh-CN">
+      <head>
+        <title>Next.js</title>
+      </head>
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
   );
 }
