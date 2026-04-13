@@ -1,0 +1,27 @@
+@baseUrl = http://localhost:3000
+
+###
+GET {{baseUrl}}/health
+
+###
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "pass123",
+  "email": "alice@example.com"
+}
+
+###
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "pass123"
+}
+
+###
+GET {{baseUrl}}/api/resources?page=1&pageSize=20
+

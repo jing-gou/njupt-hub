@@ -1,0 +1,27 @@
+{
+  "name": "njupt-notes-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.7.0",
+    "@prisma/client": "^7.7.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "jsonwebtoken": "^9.0.3",
+    "mariadb": "^3.5.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.22.0",
+    "nodemailer": "^8.0.5",
+    "prisma": "^7.7.0",
+    "qiniu": "^7.15.1"
+  }
+}
