@@ -21,7 +21,7 @@ services:
     image: njupt-hub-server
     container_name: njupt-hub-server-1
     build:
-      context: .
+      context: ./server
       dockerfile: Dockerfile
     restart: always
     environment:
@@ -36,7 +36,7 @@ services:
     image: njupt-hub-client
     container_name: njupt-hub-client-1
     build:
-      context: .
+      context: ./client
       dockerfile: Dockerfile
     restart: always
     ports:
