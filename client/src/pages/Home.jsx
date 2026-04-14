@@ -336,12 +336,17 @@ export default function Home() {
   );
   
   return (
-    <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
-      
-      {/* 遮罩层 */}
-      <div className={`fixed inset-0 z-40 transition-all duration-500 ${isSearching ? 'backdrop-blur-md bg-black/30 visible opacity-100' : 'invisible opacity-0'}`} onClick={() => setIsSearching(false)} />
+    <>
+      {/* 遮罩层 - 独立于主容器以确保 fixed 覆盖全屏 */}
+      <div 
+        className={`fixed inset-0 z-[60] transition-all duration-500 ${isSearching ? 'backdrop-blur-md bg-black/30 visible opacity-100' : 'invisible opacity-0 pointer-events-none'}`} 
+        onClick={() => setIsSearching(false)} 
+      />
 
-      <div className="relative overflow-hidden pb-12">
+      <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
+        {/* 主内容区 */}
+        <div className={`relative ${isSearching ? 'z-[70]' : 'z-20'}`} onClick={() => isSearching && setIsSearching(false)}>
+        <div className={`relative pb-12 transition-all duration-700`}>
         <div className={`absolute inset-0 overflow-hidden pointer-events-none transition-all duration-700 ${isSearching ? 'blur-2xl opacity-10' : ''}`}>
           <div className={`absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl ${darkMode ? 'bg-blue-500/10' : 'bg-blue-400/20'}`}></div>
         </div>
@@ -356,7 +361,7 @@ export default function Home() {
             一站式资料整合网站
         </p>        
           {/* 搜索框上浮 */}
-          <div className={`max-w-2xl mx-auto mb-8 transition-all duration-500 ${isSearching ? 'relative z-50 transform -translate-y-6 scale-105' : 'relative z-10'}`}>
+          <div onClick={(e) => e.stopPropagation()} className={`max-w-2xl mx-auto mb-8 transition-all duration-500 ${isSearching ? 'relative z-[80] transform -translate-y-6 scale-105' : 'relative z-10'}`}>
             <div className={`relative group ${darkMode ? 'bg-slate-800/90' : 'bg-white/90'} backdrop-blur-lg rounded-2xl shadow-xl border ${isSearching ? 'border-blue-500' : 'border-slate-200'}`}>
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={22} />
               <input 
@@ -369,10 +374,10 @@ export default function Home() {
           </div>
 
           {/* 筛选按钮搜索时隐藏 */}
-          <div className={`flex flex-wrap justify-center gap-3 mb-8 transition-all duration-500 ${isSearching ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div className={`flex flex-wrap justify-center gap-3 mb-8 transition-all duration-500 relative z-20 ${isSearching ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
             <div className="relative">
-              <button onClick={() => setShowFilter(!showFilter)} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700'}`}>
-                <Filter size={18} /> 筛选 <ChevronDown size={16} />
+              <button onClick={() => setShowFilter(!showFilter)} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
+                <Filter size={18} /> 筛选
               </button>
               {showFilter && (
                 <div className={`absolute top-full mt-2 left-0 w-64 p-4 rounded-xl shadow-2xl border z-50  ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
@@ -382,17 +387,17 @@ export default function Home() {
                 </div>
               )}
             </div>
-            <button onClick={fetchResources} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700'}`}>
+            <button onClick={fetchResources} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
               <RefreshCw size={18} /> 刷新
             </button>
             <a 
               href="https://github.com/jing-gou/njupt-notes" 
               target="_blank" 
               rel="noopener noreferrer"
-              className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap ${
                 darkMode 
-                  ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700' 
-                  : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-100'
+                  ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700' 
+                  : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
               }`}
             >
               <Github size={18} />
@@ -403,9 +408,9 @@ export default function Home() {
       </div>
 
       {/* 目录树同步上浮 */}
-      <div className={`max-w-4xl mx-auto px-4 pb-16 transition-all duration-500 ${isSearching ? 'relative z-50 transform -translate-y-30' : 'relative z-10'}`}>
+      <div className={`max-w-4xl mx-auto px-4 pb-16 transition-all duration-500 ${isSearching ? 'relative z-[70] transform -translate-y-30' : 'relative z-10'}`}>
         {Object.keys(filteredResources).length === 0 ? (
-          <div className="text-center py-20 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+          <div className="text-center py-20 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 relative z-0">
             <p>没有找到匹配的资料</p>
           </div>
         ) : (
@@ -482,8 +487,8 @@ export default function Home() {
           </div>
         </div>
       )}  
-    </div>
-    
+      </div>
+      </div>
+    </>
   );
-  
 }

@@ -147,24 +147,25 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-8 animate-in fade-in duration-700">
-      {/* 搜索框遮罩 */}
+    <>
+      {/* 搜索框遮罩 - 移到最外层以确保 fixed 覆盖全屏 */}
       <div 
-        className={`fixed inset-0 z-40 transition-all duration-500 ${isSearching ? 'backdrop-blur-md bg-black/30 visible opacity-100' : 'invisible opacity-0'}`} 
+        className={`fixed inset-0 z-[60] transition-all duration-500 ${isSearching ? 'backdrop-blur-md bg-black/30 visible opacity-100' : 'invisible opacity-0'}`} 
         onClick={() => setIsSearching(false)} 
       />
 
-      {/* Navigation & Search Container */}
-      <div className={`flex items-center w-full relative transition-all duration-700 ease-in-out ${isSearching ? 'z-50' : 'z-10'}`}>
+      <div className="max-w-6xl mx-auto p-4 space-y-8 animate-in fade-in duration-700">
+        {/* Navigation & Search Container */}
+      <div className="relative w-full min-h-[4.5rem] flex items-center">
         
-        {/* Left Spacer / Tabs Container */}
-        <div className={`flex-1 flex items-center transition-all duration-700 ease-in-out overflow-hidden ${isSearching ? 'opacity-0' : 'opacity-100'}`}>
+        {/* Tabs Container - 固定在左侧，搜索时被遮罩盖住并模糊 */}
+        <div className={`absolute left-0 z-10 transition-all duration-700 ease-in-out ${isSearching ? 'blur-sm opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <div
-            className={`flex items-center justify-center p-1.5 rounded-2xl border backdrop-blur-md shadow-lg no-scrollbar ${
+            className={`flex items-center justify-center p-1.5 rounded-2xl border backdrop-blur-md shadow-lg overflow-x-auto no-scrollbar ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white/80 border-slate-100'
             }`}
           >
-            <div className="flex gap-1.5 w-full max-w-md min-w-max">
+            <div className="flex gap-1.5 min-w-max">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -191,9 +192,16 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {/* Search Box - 平滑滑动并扩张 */}
-        <div className={`transition-all duration-700 ease-in-out relative z-50 ${isSearching ? 'w-full max-w-4xl mx-4' : 'w-full max-w-[200px] md:max-w-xs ml-4'}`}>
-          <div className={`relative group ${darkMode ? 'bg-slate-800/90' : 'bg-white/90'} backdrop-blur-lg rounded-2xl shadow-xl border ${isSearching ? 'border-blue-500 ring-4 ring-blue-500/10 scale-105 -translate-y-2' : 'border-slate-200'} transition-all duration-500`}>
+        {/* 动态间隔容器 - 始终填充左侧，确保搜索框默认居右 */}
+        <div className="flex-1 min-w-0" />
+
+        {/* Search Box Wrapper - 处理位置和宽度 */}
+        <div className={`transition-all duration-700 ease-in-out relative ${
+          isSearching 
+            ? 'w-full max-w-4xl mx-4 z-[70] transform -translate-y-2' 
+            : 'w-full max-w-xs z-10'
+        }`}>
+          <div className={`relative group ${darkMode ? 'bg-slate-800/90' : 'bg-white/90'} backdrop-blur-lg rounded-2xl shadow-xl border ${isSearching ? 'border-blue-500 ring-4 ring-blue-500/10 scale-105' : 'border-slate-200'} transition-all duration-500`}>
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-blue-500' : 'text-slate-400'}`} size={20} />
             <input 
               type="text" 
@@ -242,7 +250,7 @@ export default function ReviewPage() {
           )}
         </div>
 
-        {/* Right Spacer - 仅在搜索时激活 flex-1 以实现居中平衡 */}
+        {/* 动态间隔容器 - 搜索时从 0 增长到 flex-1，实现从右向中滑动的动画 */}
         <div className={`transition-all duration-700 ease-in-out overflow-hidden ${isSearching ? 'flex-1' : 'w-0'}`} />
       </div>
 
@@ -467,6 +475,7 @@ export default function ReviewPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
