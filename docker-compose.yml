@@ -37,7 +37,7 @@ services:
     container_name: njupt-hub-client-1
     build:
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: Dockerfile
     restart: always
     ports:
       - "3002:80"
