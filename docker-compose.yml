@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: njupt-hub-db-1
+    restart: always
+    # 解决 MySQL 8.0 身份验证兼容性问题
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  server:
+    image: njupt-hub-server
+    container_name: njupt-hub-server-1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      # 直接引用 .env 中的连接字符串
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "3001:3000"
+    depends_on:
+      - db
+
+  client:
+    image: njupt-hub-client
+    container_name: njupt-hub-client-1
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    restart: always
+    ports:
+      - "3002:80"
+    depends_on:
+      - server
+
+volumes:
+  mysql_data:
