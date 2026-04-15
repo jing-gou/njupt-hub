@@ -54,19 +54,44 @@ export default function Home({ onNavigate }) {
   const fetchResources = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/resources?status=APPROVED&pageSize=100");
-      if (!res.ok) {
-        console.error("Fetch failed with status:", res.status);
-        return;
-      }
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        console.error("Expected JSON but got:", contentType);
-        return;
-      }
-      const data = await res.json();
+      const pageSize = 100;
+      const allItems = [];
+      let page = 1;
+      let total = Infinity;
+      let hasMore = true;
 
-      const items = Array.isArray(data?.items) ? data.items : [];
+      while (hasMore && allItems.length < total) {
+        const res = await fetch(`/api/resources?status=APPROVED&page=${page}&pageSize=${pageSize}`);
+        if (!res.ok) {
+          console.error("Fetch failed with status:", res.status, "page:", page);
+          return;
+        }
+
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("Expected JSON but got:", contentType, "page:", page);
+          return;
+        }
+
+        const data = await res.json();
+        const pageItems = Array.isArray(data?.items) ? data.items : [];
+        const totalFromApi = Number(data?.total);
+        if (Number.isFinite(totalFromApi) && totalFromApi >= 0) {
+          total = totalFromApi;
+        }
+
+        allItems.push(...pageItems);
+        hasMore = pageItems.length === pageSize;
+        page += 1;
+
+        // 防止异常分页导致死循环
+        if (page > 1000) {
+          console.warn("Resource pagination exceeded safety limit.");
+          break;
+        }
+      }
+
+      const items = allItems;
       
       // 构建嵌套目录树结构
       const root = { files: [], folders: {} };
@@ -233,7 +258,7 @@ export default function Home({ onNavigate }) {
                 />
               );
             })}
-            <div className="divide-y divide-slate-100 dark:divide-slate-700">
+            <div className={level === 0 ? '' : 'divide-y divide-slate-100 dark:divide-slate-700'}>
               {data.files.map((file, index) => {
                 const isPreviewable = /\.(pdf|doc|docx|jpg|jpeg|png|gif|webp|ppt|pptx|xlsx)$/i.test(file.fileName);
                 const isLast = index === data.files.length - 1;

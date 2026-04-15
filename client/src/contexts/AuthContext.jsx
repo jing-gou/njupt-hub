@@ -173,9 +173,14 @@ export const AuthProvider = ({ children }) => {
 
   const refreshMe = useCallback(async () => {
     if (!token) return null;
-    const res = await fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    let res;
+    try {
+      res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      throw new Error('无法连接后端服务，请检查服务器或代理配置');
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data?.message || data?.error || `获取用户信息失败 (${res.status})`);
@@ -187,13 +192,18 @@ export const AuthProvider = ({ children }) => {
   const uploadAvatar = useCallback(async (file) => {
     const formData = new FormData();
     formData.append('avatar', file);
-    const res = await fetch('/api/auth/avatar', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    let res;
+    try {
+      res = await fetch('/api/auth/avatar', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+    } catch (err) {
+      throw new Error('头像上传失败：无法连接后端服务');
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data?.message || data?.error || `上传头像失败 (${res.status})`);
