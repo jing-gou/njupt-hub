@@ -68,12 +68,12 @@ export default function Profile({ onGoLogin }) {
 
   if (!isAuthed) {
     return (
-      <div className="max-w-4xl mx-auto p-4 space-y-8 animate-in fade-in duration-700">
+      <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
         <div
-          className={`rounded-2xl border shadow-xl p-8 space-y-4 ${
+          className={`md:rounded-2xl md:border md:shadow-xl p-4 md:p-8 space-y-4 ${
             darkMode
-              ? 'bg-slate-800/50 border-slate-700 shadow-slate-900/50'
-              : 'bg-white border-slate-100 shadow-slate-200/50'
+              ? 'md:bg-slate-800/50 md:border-slate-700 md:shadow-slate-900/50'
+              : 'md:bg-slate-100 md:border-slate-100 md:shadow-slate-200/50'
           }`}
         >
           <div className="flex items-center gap-3">
@@ -81,8 +81,8 @@ export default function Profile({ onGoLogin }) {
               <CircleUserRound size={24} />
             </div>
             <div>
-              <h2 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>个人中心</h2>
-              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>你还没有登录</p>
+              <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>个人中心</h2>
+              <p className={`text-xs md:text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>你还没有登录</p>
             </div>
           </div>
 
@@ -100,12 +100,12 @@ export default function Profile({ onGoLogin }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-8 animate-in fade-in duration-700">
+    <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
       <div
-        className={`rounded-2xl border shadow-xl p-8 space-y-6 ${
+        className={`md:rounded-2xl md:border md:shadow-xl p-4 md:p-8 space-y-6 ${
           darkMode
-            ? 'bg-slate-800/50 border-slate-700 shadow-slate-900/50'
-            : 'bg-white border-slate-100 shadow-slate-200/50'
+            ? 'md:bg-slate-800/50 md:border-slate-700 md:shadow-slate-900/50'
+            : 'md:bg-slate-100 md:border-slate-100 md:shadow-slate-200/50'
         }`}
       >
         <div className="flex items-center justify-between gap-4">
@@ -114,8 +114,8 @@ export default function Profile({ onGoLogin }) {
               <CircleUserRound size={24} />
             </div>
             <div>
-              <h2 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>个人中心</h2>
-              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>登录状态正常</p>
+              <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>个人中心</h2>
+              <p className={`text-xs md:text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>登录状态正常</p>
             </div>
           </div>
 
@@ -130,19 +130,19 @@ export default function Profile({ onGoLogin }) {
         </div>
 
         <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-50'}`}>
+          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'}`}>
             <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>用户名</div>
             <div className="font-semibold">{user?.username || '-'}</div>
           </div>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-50'}`}>
+          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'}`}>
             <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>邮箱</div>
             <div className="font-semibold">{user?.email || '-'}</div>
           </div>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-50'}`}>
+          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'}`}>
             <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>角色</div>
             <div className="font-semibold">{user?.role || '-'}</div>
           </div>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-blue-500/30 bg-blue-500/10' : 'border-blue-100 bg-blue-50'}`}>
+          <div className={`rounded-xl p-4 border ${darkMode ? 'border-blue-500/30 bg-blue-500/10' : 'border-blue-100 bg-blue-100'}`}>
             <div className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'} font-bold`}>累计获赞</div>
             <div className={`text-xl font-black ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{receivedLikes}</div>
           </div>

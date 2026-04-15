@@ -1,12 +1,16 @@
 import React from 'react';
+import { Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Footer = ({ darkMode }) => {
+  const { themeMode, applyThemeMode } = useTheme();
+
   return (
-    <footer className={`border-t py-12 transition-colors duration-500 ${
+    <footer className={`border-t pt-12 pb-24 md:pb-12 transition-colors duration-500 ${
       darkMode 
-        ? 'bg-slate-900 border-slate-800 text-slate-400' 
-        : 'bg-white/50 border-slate-200 text-slate-500'
-    } backdrop-blur-md`}>
+        ? 'bg-slate-900/80 border-slate-800 text-slate-400' 
+        : 'bg-slate-100/80 border-slate-200 text-slate-500'
+    } backdrop-blur-xl`}>
       <div className="max-w-6xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
           
@@ -24,10 +28,82 @@ const Footer = ({ darkMode }) => {
               由 <span className="font-semibold text-blue-500">Sugar</span> 开发维护。
               本项目旨在整合校园优质资料，提供给同学们学习参考。欢迎上传共享！
             </p>
-            <p className="text-xs opacity-60 uppercase tracking-widest">
-              © 2025 - 2026 NJUPT HUB.
-            </p>
+
+
+
+            <div className="text-xs opacity-60 uppercase tracking-widest flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>© 2025 - 2026 NJUPT HUB.</span>
+              <span className="opacity-50">|</span>
+              <span className="normal-case tracking-normal opacity-80">友情链接</span>
+              <a
+                href="https://github.com/NJUPTFreeExams"
+                target="_blank"
+                rel="noreferrer"
+                className={`normal-case tracking-normal hover:underline underline-offset-4 transition-colors ${
+                  darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+                }`}
+              >
+                NJUPTFreeExams
+              </a>
+              <a
+                href="https://njupt-navi.github.io/"
+                target="_blank"
+                rel="noreferrer"
+                className={`normal-case tracking-normal hover:underline underline-offset-4 transition-colors ${
+                  darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+                }`}
+              >
+                NJUPT NAVI
+              </a>
+              
+            </div>
+
+            {/* Theme mode tabs */}
+            <div className={`inline-flex items-center gap-1 p-1 rounded-2xl border ${
+              darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-white/60'
+            }`}>
+              <button
+                type="button"
+                onClick={() => applyThemeMode('light')}
+                className={`p-2 rounded-xl transition-all ${
+                  themeMode === 'light'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : darkMode ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+                aria-pressed={themeMode === 'light'}
+                title="浅色"
+              >
+                <Sun size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyThemeMode('dark')}
+                className={`p-2 rounded-xl transition-all ${
+                  themeMode === 'dark'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : darkMode ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+                aria-pressed={themeMode === 'dark'}
+                title="深色"
+              >
+                <Moon size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyThemeMode('system')}
+                className={`p-2 rounded-xl transition-all ${
+                  themeMode === 'system'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : darkMode ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+                aria-pressed={themeMode === 'system'}
+                title="跟随系统"
+              >
+                <Monitor size={16} />
+              </button>
+            </div>            
           </div>
+
 
           {/* 右侧：免责声明 */}
           <div className={`p-5 rounded-2xl border ${

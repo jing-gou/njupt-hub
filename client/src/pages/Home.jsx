@@ -163,10 +163,10 @@ export default function Home() {
   };
 
   // --- 递归文件夹组件 ---
-  const FolderNode = ({ folderName, data, path, level = 0 }) => {
+  const FolderNode = ({ folderName, data, path, level = 0, isLastOfParent = false }) => {
     const fullPath = path ? `${path}/${folderName}` : folderName;
     const isOpen = openFolders[fullPath];
-    const indent = level * 2; // 移动端缩进减小
+    const indent = level; // 进一步减小移动端缩进
     const getFolderColor = () => {
       if (level === 0) return darkMode ? 'text-purple-400' : 'text-purple-500';
       if (level === 1) return darkMode ? 'text-blue-400' : 'text-blue-500';
@@ -174,12 +174,22 @@ export default function Home() {
     };
     const hasContent = data.files.length > 0 || Object.keys(data.folders).length > 0;
     
+    const getBgColor = () => {
+      if (darkMode) return 'bg-transparent hover:bg-slate-800/30';
+      if (level === 0) return 'bg-transparent hover:bg-slate-50';
+      return 'bg-slate-200/40 hover:bg-slate-200/60';
+    };
+    
     return (
-      <div>
+      <div className={`transition-all duration-300 ${
+        level === 0 
+          ? `mb-4 md:rounded-xl md:border md:backdrop-blur-md ${darkMode ? 'md:border-slate-700 md:bg-slate-900/40 md:shadow-lg md:shadow-black/20' : 'md:border-slate-200 md:bg-white/70 md:shadow-md md:hover:shadow-lg'}` 
+          : (darkMode ? 'bg-slate-800/10' : 'bg-slate-50/50')
+      } ${isLastOfParent ? 'md:rounded-b-xl' : ''}`}>
         <button
           onClick={() => toggleFolder(fullPath)}
-          className={`w-full flex items-center justify-between p-4 transition-all transform hover:bg-slate-800/10 dark:hover:bg-slate-800/50 active:scale-[0.99] ${darkMode ? '' : ''}`}
-          style={{ paddingLeft: `${window.innerWidth < 768 ? 1 + indent * 0.5 : 3 + indent * 0.75}rem` }}
+          className={`w-full flex items-center justify-between p-4 transition-all transform active:scale-[0.99] ${level === 0 ? 'md:rounded-t-xl' : ''} ${getBgColor()}`}
+          style={{ paddingLeft: `${window.innerWidth < 768 ? 0.75 + indent * 0.4 : 3 + indent * 0.75}rem` }}
         >
           <div className="flex items-center gap-3">
             <Folder size={20 - level} className={`${isOpen ? `${getFolderColor()} fill-current opacity-20` : darkMode ? 'text-slate-600' : 'text-slate-400'}`} />
@@ -192,18 +202,29 @@ export default function Home() {
         </button>
         {isOpen && hasContent && (
           <div className={`${level === 0 ? `border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}` : ''}`}>
-            {Object.entries(data.folders).map(([subFolderName, subData]) => (
-              <FolderNode key={subFolderName} folderName={subFolderName} data={subData} path={fullPath} level={level + 1} />
-            ))}
+            {Object.entries(data.folders).map(([subFolderName, subData], index) => {
+              const isLast = index === Object.keys(data.folders).length - 1 && data.files.length === 0;
+              return (
+                <FolderNode 
+                  key={subFolderName} 
+                  folderName={subFolderName} 
+                  data={subData} 
+                  path={fullPath} 
+                  level={level + 1} 
+                  isLastOfParent={isLast && level === 0}
+                />
+              );
+            })}
             <div className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.files.map((file) => {
+              {data.files.map((file, index) => {
                 const isPreviewable = /\.(pdf|doc|docx|jpg|jpeg|png|gif|webp|ppt|pptx|xlsx)$/i.test(file.fileName);
+                const isLast = index === data.files.length - 1;
 
                 return (
                   <div 
                     key={file.sha} 
-                    className={`grid grid-cols-12 items-center p-4 transition-colors ${darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-white'}`} 
-                    style={{ paddingLeft: `${window.innerWidth < 768 ? 1 + indent * 0.5 : 3 + indent * 0.75}rem` }}
+                    className={`grid grid-cols-12 items-center p-4 transition-colors ${getBgColor()} ${isLast && level === 0 ? 'md:rounded-b-xl' : ''}`} 
+                    style={{ paddingLeft: `${window.innerWidth < 768 ? 0.75 + indent * 0.4 : 3 + indent * 0.75}rem` }}
                   >
                     {/* 名称列 */}
                     <div className="flex items-center gap-3 overflow-hidden col-span-10 md:col-span-5 group/name">
@@ -329,7 +350,7 @@ export default function Home() {
   }, [resources, searchQuery, selectedCategory, sortOrder]);
 
   if (loading) return (
-    <div className={`min-h-screen flex flex-col items-center justify-center ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
+    <div className={`min-h-screen flex flex-col items-center justify-center ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
       <Loader2 className="animate-spin mb-4 text-blue-500" size={40} />
       <p>正在检索文件树...</p>
     </div>
@@ -343,23 +364,23 @@ export default function Home() {
         onClick={() => setIsSearching(false)}
       />
 
-      <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
+      <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
         {/* 主内容区 */}
-        <div className={`relative ${isSearching ? 'z-[70]' : 'z-20'}`} onClick={() => isSearching && setIsSearching(false)}>
-          <div className="relative pb-12">
-            <div className={`absolute inset-0 overflow-hidden pointer-events-none transition-all duration-700 ${isSearching ? 'blur-2xl opacity-10' : ''}`}>
-              <div className={`absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl ${darkMode ? 'bg-blue-500/10' : 'bg-blue-400/20'}`}></div>
+        <div className={`relative ${isSearching ? 'z-[70]' : 'z-10'}`} onClick={() => isSearching && setIsSearching(false)}>
+          <div className="relative pb-2">
+            <div className={`absolute inset-0 pointer-events-none transition-all duration-700 ${isSearching ? 'blur-2xl opacity-10' : ''}`}>
+              <div className={`absolute top-0 left-1/4 w-96 h-96 rounded-full blur-[100px] ${darkMode ? 'bg-blue-500/10' : 'bg-blue-400/20'}`}></div>
             </div>
 
-            <div className="relative max-w-4xl mx-auto px-4 pt-20 pb-8 text-center">
-              <h1 className={`text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r transition-all duration-900 hover:scale-105 active:scale-95 ${darkMode ? 'from-blue-400 to-pink-400' : 'from-blue-600 to-pink-600'} ${isSearching ? 'opacity-10 blur-md scale-90' : 'opacity-100'}`}>
+            <div className="relative max-w-4xl mx-auto px-4 pt-12 pb-4 text-center">
+              <h1 className={`text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r transition-all duration-900 hover:scale-105 active:scale-95 ${darkMode ? 'from-blue-400 to-pink-400' : 'from-blue-600 to-pink-600'} ${isSearching ? 'opacity-10 blur-md scale-90' : 'opacity-100'}`}>
                 NJUPT Hub
               </h1>
-              <p className={`text-lg md:text-xl mb-12 transition-all duration-500 ${darkMode ? 'text-slate-400' : 'text-slate-600'} ${isSearching ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'}`}>
+              <p className={`text-lg md:text-xl mb-8 transition-all duration-500 ${darkMode ? 'text-slate-400' : 'text-slate-600'} ${isSearching ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'}`}>
                 一站式资料整合网站
               </p>
               {/* 搜索框上浮 */}
-              <div onClick={(e) => e.stopPropagation()} className={`max-w-2xl mx-auto mb-8 transition-all duration-500 ${isSearching ? 'relative z-[80] transform -translate-y-6 scale-105' : 'relative z-10'}`}>
+              <div onClick={(e) => e.stopPropagation()} className={`max-w-2xl mx-auto mb-6 transition-all duration-500 ${isSearching ? 'relative z-[80] transform -translate-y-6 md:scale-105 scale-[1.02]' : 'relative z-10'}`}>
                 <div className={`relative group ${darkMode ? 'bg-slate-800/90' : 'bg-white/90'} backdrop-blur-lg rounded-2xl shadow-xl border ${isSearching ? 'border-blue-500' : 'border-slate-200'}`}>
                   <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={22} />
                   <input
@@ -371,10 +392,9 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 筛选按钮搜索时隐藏 */}
-              <div className={`flex flex-wrap justify-center gap-3 mb-8 transition-all duration-500 relative z-20 ${isSearching ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <div className={`flex flex-wrap justify-center gap-3 mb-4 transition-all duration-500 relative z-20 ${isSearching ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 <div className="relative">
-                  <button onClick={() => setShowFilter(!showFilter)} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
+                  <button onClick={() => setShowFilter(!showFilter)} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
                     <Filter size={18} /> 筛选
                   </button>
                   {showFilter && (
@@ -385,14 +405,14 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <button onClick={fetchResources} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
+                <button onClick={fetchResources} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
                   <RefreshCw size={18} /> 刷新
                 </button>
                 <a
                   href="https://github.com/jing-gou/njupt-notes"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
+                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
                 >
                   <Github size={18} />
                   <span>GitHub</span>
@@ -403,22 +423,26 @@ export default function Home() {
         </div>
 
         {/* 目录树同步上浮 */}
-        <div className={`max-w-4xl mx-auto px-4 pb-16 transition-all duration-500 ${isSearching ? 'relative z-[70] transform -translate-y-30' : 'relative z-10'}`}>
+        <div className={`max-w-4xl mx-auto px-2 md:px-4 pb-24 transition-all duration-500 ${isSearching ? 'relative z-[70] transform -translate-y-12 md:-translate-y-24' : 'relative z-10'}`}>
           {Object.keys(filteredResources).length === 0 ? (
             <div className="text-center py-20 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 relative z-0">
               <p>没有找到匹配的资料</p>
             </div>
           ) : (
-            <div className={`rounded-xl border overflow-hidden ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+            <div className="space-y-4">
               {/* 表头 - 仅在桌面端显示 */}
-              <div className={`hidden md:grid grid-cols-12 px-4 py-3 text-xs font-semibold ${darkMode ? 'bg-slate-900/40 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+              <div className={`hidden md:grid grid-cols-12 px-4 py-2 mt-4 text-xs font-semibold bg-transparent transition-colors duration-500 ${
+                isSearching 
+                  ? 'text-white' 
+                  : darkMode ? 'text-slate-500' : 'text-slate-400'
+              }`}>
                 <div className="col-span-5">名称</div>
                 <div className="col-span-3 text-center">修改时间</div>
                 <div className="col-span-2 text-center">大小</div>
                 <div className="col-span-2 text-right">操作</div>
               </div>
 
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1">
                 {Object.entries(filteredResources).map(([courseName, folderData]) => (
                   <FolderNode
                     key={courseName}

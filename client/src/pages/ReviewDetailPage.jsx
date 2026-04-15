@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import StarRating from '../components/StarRating';
+import toast from 'react-hot-toast';
 import { 
   ChevronLeft, 
   Send, 
@@ -127,7 +128,7 @@ export default function ReviewDetailPage({ itemId, onBack }) {
 
   // 处理点赞
   const handleToggleLike = async (reviewId) => {
-    if (!isAuthed) return alert('请先登录');
+    if (!isAuthed) return toast.error('请先登录');
     try {
       const res = await fetch(`/api/reviews/${reviewId}/like`, {
         method: 'POST',
@@ -136,12 +137,13 @@ export default function ReviewDetailPage({ itemId, onBack }) {
       if (res.ok) fetchDetail();
     } catch (err) {
       console.error('点赞失败:', err);
+      toast.error('点赞失败');
     }
   };
 
   // 处理回复提交
   const handleReplySubmit = async (reviewId) => {
-    if (!isAuthed) return alert('请先登录');
+    if (!isAuthed) return toast.error('请先登录');
     if (!replyContent.trim()) return;
 
     try {
@@ -156,10 +158,12 @@ export default function ReviewDetailPage({ itemId, onBack }) {
       if (res.ok) {
         setReplyContent('');
         setActiveReplyId(null);
+        toast.success('回复成功');
         fetchDetail();
       }
     } catch (err) {
       console.error('回复失败:', err);
+      toast.error('回复失败');
     }
   };
 
@@ -179,12 +183,13 @@ export default function ReviewDetailPage({ itemId, onBack }) {
         body: JSON.stringify({ reason: reportReason })
       });
       if (res.ok) {
-        alert('举报已提交，我们会尽快处理');
+        toast.success('举报已提交，我们会尽快处理');
         setReportingId(null);
         setReportReason('');
       }
     } catch (err) {
       console.error('举报失败:', err);
+      toast.error('举报失败');
     } finally {
       setReportingLoading(false);
     }

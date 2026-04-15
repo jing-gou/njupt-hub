@@ -1,6 +1,7 @@
 // App.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { Toaster } from 'react-hot-toast';
 import Home from './pages/Home';
 import Upload from './pages/Upload';
 import Login from './pages/Login';
@@ -26,9 +27,49 @@ function AppContent() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
   const [currentPage, setCurrentPage] = useState('home');
-  const { darkMode, toggleTheme } = useTheme();
+  const { darkMode } = useTheme();
   const { isAuthed, user } = useAuth();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'DEV';
+  const [isMobileNavCollapsed, setIsMobileNavCollapsed] = useState(false);
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
+  // 移动端：向下滑动时收缩顶部 sticky bar，向上滑/回到顶部时展开
+  useEffect(() => {
+    const onScroll = () => {
+      if (window.innerWidth >= 768) return; // md 及以上不处理
+
+      const y = window.scrollY || 0;
+      const lastY = lastScrollYRef.current || 0;
+      const delta = y - lastY;
+
+      // 顶部附近始终展开
+      if (y < 24) {
+        setIsMobileNavCollapsed(false);
+        lastScrollYRef.current = y;
+        return;
+      }
+
+      // 轻微抖动忽略
+      if (Math.abs(delta) < 8) {
+        lastScrollYRef.current = y;
+        return;
+      }
+
+      // 下滑超过一定距离后收缩，上滑则展开
+      if (delta > 0 && y > 80) setIsMobileNavCollapsed(true);
+      if (delta < 0) setIsMobileNavCollapsed(false);
+
+      lastScrollYRef.current = y;
+    };
+
+    lastScrollYRef.current = window.scrollY || 0;
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   if (isUnderMaintenance && !isMobile()) {
     return (
@@ -56,7 +97,7 @@ if (isUnderMaintenance && isMobile()) {
         
         {/* 背景层 - 保持 absolute，它会随内容拉长而拉长 */}
         <div className="absolute inset-0 pointer-events-none z-0">
-          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[60vh] rounded-[100%] blur-[120px] opacity-50 ${
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-[60vh] rounded-[100%] blur-[120px] opacity-50 ${
             darkMode ? 'bg-blue-600/20' : 'bg-blue-300/40'
           }`}></div>
         </div>
@@ -78,15 +119,17 @@ if (isUnderMaintenance && isMobile()) {
 
   return (
    <div className={`min-h-screen flex flex-col transition-colors duration-500 ${
-      darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+      darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300'
     }`}>
       {/* 顶部导航栏 */}
       <nav className={`sticky top-0 z-40 backdrop-blur-lg border-b transition-colors ${
         darkMode 
           ? 'bg-slate-900/80 border-slate-800' 
-          : 'bg-white/80 border-slate-200'
+          : 'bg-slate-100/85 border-slate-200'
       }`}>
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className={`max-w-6xl mx-auto px-4 flex items-center justify-between transition-all duration-300 ${
+          isMobileNavCollapsed ? 'py-2' : 'py-4'
+        }`}>
           {/* Logo */}
           <div className={`hidden md:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${
             darkMode 
@@ -220,7 +263,7 @@ if (isUnderMaintenance && isMobile()) {
       <Footer darkMode={darkMode} />
 
       <main>
-        <div class="h-16 md:hidden"></div>  
+        <div className="h-16 md:hidden"></div>  
       </main>
 
 
@@ -268,6 +311,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <Toaster position="top-center" reverseOrder={false} />
         <AppContent />
       </AuthProvider>
     </ThemeProvider>

@@ -34,18 +34,18 @@ export default function Login({ onSuccess, onGoRegister, onGoForgotPassword }) {
   };
 
   return (
-    <div className={`min-h-[calc(100vh-180px)] flex items-center justify-center p-4 transition-colors duration-500 ${darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'}`}>
+    <div className={`min-h-[calc(100vh-180px)] flex items-center justify-center p-4 transition-colors duration-500 ${darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300'}`}>
       <div className={`absolute inset-0 overflow-hidden pointer-events-none ${darkMode ? 'opacity-30' : ''}`}>
         <div className={`absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-400/30'}`}></div>
         <div className={`absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl ${darkMode ? 'bg-purple-500/20' : 'bg-purple-400/30'}`}></div>
       </div>
 
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full max-w-md px-2">
         <div
-          className={`rounded-3xl border shadow-2xl p-8 space-y-8 backdrop-blur-xl ${
+          className={`md:rounded-3xl md:border md:shadow-2xl p-6 md:p-8 space-y-8 backdrop-blur-xl ${
             darkMode
-              ? 'bg-slate-800/70 border-slate-700/50 shadow-slate-900/50'
-              : 'bg-white/70 border-white/50 shadow-blue-500/10'
+              ? 'md:bg-slate-800/70 md:border-slate-700/50 md:shadow-slate-900/50'
+              : 'md:bg-white/70 md:border-white/50 md:shadow-blue-500/10'
           }`}
         >
           <div className="text-center space-y-2">

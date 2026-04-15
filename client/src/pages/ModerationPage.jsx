@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 import { 
   ShieldCheck, 
   FileText, 
@@ -71,9 +72,10 @@ export default function ModerationPage() {
       });
       if (res.ok) {
         setResources(resources.filter(r => r.id !== id));
+        toast.success('操作成功');
       }
     } catch (err) {
-      alert('操作失败');
+      toast.error('操作失败');
     } finally {
       setActionLoading(null);
     }
@@ -89,9 +91,10 @@ export default function ModerationPage() {
       if (res.ok) {
         setReports(reports.filter(r => r.reviewId !== reviewId));
         setConfirmModal({ show: false, type: '', id: null, reviewId: null });
+        toast.success('删除成功');
       }
     } catch (err) {
-      alert('删除失败');
+      toast.error('删除失败');
     } finally {
       setActionLoading(null);
     }
@@ -100,50 +103,47 @@ export default function ModerationPage() {
   const handleDismissReport = async (reportId) => {
     setActionLoading(`report-${reportId}`);
     try {
-      const res = await fetch(`/api/reviews/admin/reports/${reportId}`, {
-        method: 'DELETE',
+      const res = await fetch(`/api/reviews/admin/reports/${reportId}/dismiss`, {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         setReports(reports.filter(r => r.id !== reportId));
+        toast.success('已忽略');
       }
     } catch (err) {
-      alert('忽略失败');
+      toast.error('忽略失败');
     } finally {
       setActionLoading(null);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-8 animate-in fade-in duration-700">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-2xl ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-600 text-white'}`}>
-          <ShieldCheck size={32} />
+    <div className="max-w-6xl mx-auto px-2 py-4 md:p-6 space-y-6 animate-in fade-in duration-700">
+      <div className="flex items-center gap-3 px-2 md:px-0">
+        <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'}`}>
+          <ShieldCheck size={24} />
         </div>
         <div>
-          <h1 className={`text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>内容审核中心</h1>
-          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
-            当前身份: <span className="font-bold text-blue-500">{user?.role}</span>
-          </p>
+          <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>内容管理</h2>
+          <p className={`text-xs md:text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>审核资源上传与用户举报</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-4 border-b dark:border-slate-700">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 px-2 md:px-0">
         <button
           onClick={() => setActiveTab('RESOURCES')}
-          className={`pb-4 px-4 font-bold transition-all border-b-2 ${
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
             activeTab === 'RESOURCES'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-slate-500 hover:text-slate-300'
           }`}
         >
-          资料审核 ({resources.length})
+          待审资料 ({resources.length})
         </button>
         <button
           onClick={() => setActiveTab('REPORTS')}
-          className={`pb-4 px-4 font-bold transition-all border-b-2 ${
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
             activeTab === 'REPORTS'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -158,7 +158,7 @@ export default function ModerationPage() {
           <Loader2 className="animate-spin text-blue-500" size={40} />
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 px-2 md:px-0">
           {activeTab === 'RESOURCES' ? (
             resources.length === 0 ? (
               <div className="text-center py-20 text-slate-500">暂无待审核资料</div>
@@ -167,9 +167,9 @@ export default function ModerationPage() {
                 {resources.map(res => (
                   <div 
                     key={res.id}
-                    className={`p-6 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 ${
+                    className={`p-4 md:p-6 md:rounded-2xl md:border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 ${
                       darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'
-                    }`}
+                    } ${window.innerWidth < 768 ? 'rounded-xl border' : ''}`}
                   >
                     <div className="flex-1 space-y-2 w-full">
                       <div className="flex items-center gap-2">

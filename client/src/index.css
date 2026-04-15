@@ -15,12 +15,13 @@
 /* 基础样式微调 */
 @layer base {
   body {
-    @apply antialiased;
+    @apply antialiased overflow-x-hidden;
     /* 移除固定背景色，让页面组件控制 */
   }
   
   /* 平滑滚动 */
   html {
+    @apply overflow-x-hidden;
     scroll-behavior: smooth;
   }
 }

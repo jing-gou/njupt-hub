@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GitPullRequest, FileUp, CheckCircle2, ShieldAlert, Search, Loader2, ChevronDown } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import toast from 'react-hot-toast';
 
 export default function Upload() {
   const { darkMode } = useTheme();
@@ -63,7 +64,9 @@ export default function Upload() {
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
     if (file.size > MAX_SIZE_BYTES) {
-      alert(`文件太大了！目前免费版最大支持 ${MAX_SIZE_MB}MB，当前文件 ${(file.size / (1024 * 1024)).toFixed(2)}MB。\n\n如有大文件需求可发送至：sugar.pub@outlook.com`);
+      toast.error(`文件太大了！最大支持 ${MAX_SIZE_MB}MB`, {
+        duration: 4000,
+      });
       return;
     }
 
@@ -90,15 +93,16 @@ export default function Upload() {
 
         if (response.ok) {
           setStatus('success');
+          toast.success('上传成功，请等待审核');
           setFile(null);
         } else {
           const errData = await response.json();
           setStatus('error');
-          alert(`上传失败: ${errData.error}`);
+          toast.error(`上传失败: ${errData.error}`);
         }
       } catch (err) {
         setStatus('error');
-        alert("网络请求失败，请稍后重试");
+        toast.error("网络请求失败，请稍后重试");
       }
     };
   };

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import ReviewCard from '../components/ReviewCard';
 import ReviewDetailPage from './ReviewDetailPage';
-import { Users, Utensils, ShoppingBag, Loader2, Plus, X, Image as ImageIcon, Search, ChevronDown } from 'lucide-react';
+import { Users, Utensils, ShoppingBag, Loader2, Plus, X, Image as ImageIcon, Search, ChevronDown, SlidersHorizontal, ArrowUpDown, Flame, MapPin, School, Layers, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const TABS = [
   { id: 'CANTEEN', label: '食堂档口', icon: Utensils },
@@ -21,10 +22,110 @@ export default function ReviewPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
-  // 过滤后的列表
-  const filteredItems = items.filter(item => 
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    item.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter / Sort States
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedCanteenArea, setSelectedCanteenArea] = useState('');
+  const [selectedCanteenFloor, setSelectedCanteenFloor] = useState('');
+  const [selectedMentorCollege, setSelectedMentorCollege] = useState('');
+  const [sortKey, setSortKey] = useState('HEAT'); // 'RATING' | 'HEAT'
+  const [sortOrder, setSortOrder] = useState('DESC'); // 'ASC' | 'DESC'
+
+  const parseCanteenLocation = (location) => {
+    if (!location) return { area: '', floor: '' };
+    const m = String(location).trim().match(/^(.+?)\s*-\s*(\d+)\s*楼$/);
+    if (m) return { area: m[1], floor: `${m[2]}楼` };
+    // fallback: try split by '-' and keep raw
+    const parts = String(location).split('-').map(s => s.trim()).filter(Boolean);
+    return { area: parts[0] || '', floor: parts[1] || '' };
+  };
+
+  const heatScore = (item) => {
+    const rating = Number(item.avgRating || 0);
+    const count = Number(item.reviewCount || 0);
+    // 综合：评分分值 × 评分数量（简单直观，可解释）
+    return rating * count;
+  };
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const baseSearchedItems = items.filter((item) => {
+    if (!normalizedQuery) return true;
+    return (
+      String(item.title || '').toLowerCase().includes(normalizedQuery) ||
+      String(item.description || '').toLowerCase().includes(normalizedQuery)
+    );
+  });
+
+  const filteredAndSortedItems = baseSearchedItems
+    .filter((item) => {
+      if (activeTab === 'CANTEEN') {
+        const { area, floor } = parseCanteenLocation(item.location);
+        if (selectedCanteenArea && area !== selectedCanteenArea) return false;
+        if (selectedCanteenFloor && floor !== selectedCanteenFloor) return false;
+      }
+      if (activeTab === 'MENTOR') {
+        if (selectedMentorCollege && String(item.college || '') !== selectedMentorCollege) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const dir = sortOrder === 'ASC' ? 1 : -1;
+      if (sortKey === 'RATING') {
+        return dir * (Number(a.avgRating || 0) - Number(b.avgRating || 0));
+      }
+      // HEAT
+      return dir * (heatScore(a) - heatScore(b));
+    });
+
+  const canteenAreas = Array.from(
+    new Set(
+      items
+        .filter((i) => i.type === 'CANTEEN')
+        .map((i) => parseCanteenLocation(i.location).area)
+        .filter(Boolean)
+    )
+  );
+  const canteenFloors = Array.from(
+    new Set(
+      items
+        .filter((i) => i.type === 'CANTEEN')
+        .map((i) => parseCanteenLocation(i.location).floor)
+        .filter(Boolean)
+    )
+  );
+  const mentorColleges = Array.from(
+    new Set(
+      items
+        .filter((i) => i.type === 'MENTOR')
+        .map((i) => String(i.college || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  const resetFiltersForTab = (tab) => {
+    if (tab === 'CANTEEN') {
+      setSelectedCanteenArea('');
+      setSelectedCanteenFloor('');
+    } else if (tab === 'MENTOR') {
+      setSelectedMentorCollege('');
+    }
+  };
+
+  const Chip = ({ active, onClick, children, title }) => (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[12px] font-bold transition-all ${
+        active
+          ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
+          : darkMode
+            ? 'border-slate-700 text-slate-200 hover:bg-slate-800/60'
+            : 'border-slate-200 text-slate-700 hover:bg-slate-200'
+      }`}
+    >
+      {active && <Check size={14} />}
+      {children}
+    </button>
   );
 
   // Add Item Modal States
@@ -77,7 +178,7 @@ export default function ReviewPage() {
       if (data.url) setNewImageUrl(data.url);
     } catch (err) {
       console.error('Upload failed:', err);
-      alert(err.message || '图片上传失败');
+      toast.error(err.message || '图片上传失败');
     } finally {
       setUploading(false);
     }
@@ -85,7 +186,7 @@ export default function ReviewPage() {
 
   const handleAddItem = async (e) => {
     e.preventDefault();
-    if (!newTitle.trim()) return alert('请输入名称');
+    if (!newTitle.trim()) return toast.error('请输入名称');
 
     setIsSubmitting(true);
     const body = {
@@ -117,14 +218,15 @@ export default function ReviewPage() {
         setNewTitle('');
         setNewDesc('');
         setNewImageUrl('');
+        toast.success('添加成功');
         fetchItems();
       } else {
         const data = await res.json();
-        alert(data.message || '添加失败');
+        toast.error(data.message || '添加失败');
       }
     } catch (err) {
       console.error('Add item failed:', err);
-      alert('添加失败');
+      toast.error('添加失败');
     } finally {
       setIsSubmitting(false);
     }
@@ -132,6 +234,13 @@ export default function ReviewPage() {
 
   useEffect(() => {
     fetchItems();
+  }, [activeTab]);
+
+  // 切换 Tab 时关闭面板并清理不相关筛选，避免“筛不到东西”
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    setShowFilterPanel(false);
+    resetFiltersForTab(activeTab);
   }, [activeTab]);
 
   if (selectedItemId) {
@@ -150,7 +259,7 @@ export default function ReviewPage() {
     <>
       {/* 搜索框遮罩 - 移到最外层以确保 fixed 覆盖全屏 */}
       <div 
-        className={`fixed inset-0 z-[60] transition-all duration-500 ${isSearching ? 'backdrop-blur-md bg-black/30 visible opacity-100' : 'invisible opacity-0'}`} 
+        className={`fixed inset-0 z-[60] transition-all duration-300 ${isSearching ? 'backdrop-blur-md bg-black/40 visible opacity-100' : 'invisible opacity-0'}`} 
         onClick={() => setIsSearching(false)} 
       />
 
@@ -159,7 +268,7 @@ export default function ReviewPage() {
       <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
         
         {/* Tabs Container - 移动端改为正常流布局，避免与搜索框重叠 */}
-        <div className={`w-full md:w-auto z-10 transition-all duration-700 ease-in-out ${isSearching ? 'blur-sm opacity-50 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`w-full md:w-auto z-10 transition-all duration-500 ease-in-out ${isSearching ? 'blur-sm opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <div
             className={`flex items-center justify-center p-1.5 rounded-2xl border backdrop-blur-md shadow-lg overflow-x-auto no-scrollbar ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white/80 border-slate-100'
@@ -192,59 +301,218 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {/* Search Box Wrapper - 处理位置和宽度 */}
-        <div className={`transition-all duration-700 ease-in-out relative md:ml-auto ${
-          isSearching 
-            ? 'w-full md:max-w-4xl md:mx-4 z-[70] transform -translate-y-2' 
-            : 'w-full md:w-auto max-w-none md:max-w-xs z-10'
-        }`}>
-          <div className={`relative group ${darkMode ? 'bg-slate-800/90' : 'bg-white/90'} backdrop-blur-lg rounded-2xl shadow-xl border ${isSearching ? 'border-blue-500 ring-4 ring-blue-500/10 scale-105' : 'border-slate-200'} transition-all duration-500`}>
-            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-blue-500' : 'text-slate-400'}`} size={20} />
-            <input 
-              type="text" 
-              value={searchQuery} 
-              onFocus={() => setIsSearching(true)}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索项目名称或简介..."
-              className={`w-full pl-12 pr-4 py-3 bg-transparent outline-none text-base ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}
-            />
-            {isSearching && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsSearching(false); setSearchQuery(''); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-              >
-                <X size={18} />
-              </button>
-            )}
-          </div>
+        {/* Filter / Sort Button */}
+        <div className={`relative transition-all duration-500 ease-in-out ${
+          isSearching ? 'blur-sm opacity-50 pointer-events-none' : 'opacity-100'
+        } ${showFilterPanel ? 'z-[80]' : 'z-10'}`}>
+          <button
+            onClick={() => setShowFilterPanel(v => !v)}
+            className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border backdrop-blur-lg shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+              darkMode
+                ? 'bg-slate-800/90 border-slate-700 text-slate-200 hover:bg-slate-800'
+                : 'bg-white/90 border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <SlidersHorizontal size={18} />
+            <span className="text-sm font-semibold">筛选 / 排序</span>
+          </button>
 
-          {/* 实时搜索结果列表 (位于模糊蒙版之上) */}
-          {isSearching && searchQuery && (
-            <div className={`absolute top-full left-0 right-0 mt-6 max-h-[60vh] overflow-y-auto p-6 rounded-3xl border shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 ${
-              darkMode ? 'bg-slate-800/95 border-slate-700 shadow-blue-900/20' : 'bg-white/95 border-slate-100 shadow-blue-500/10'
+          {showFilterPanel && (
+            <div className={`absolute z-[90] mt-3 w-full md:w-[380px] right-0 rounded-2xl md:rounded-3xl border shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden backdrop-blur-xl ${
+              darkMode ? 'bg-slate-800/95 border-slate-700 shadow-blue-900/20' : 'bg-slate-100/95 border-slate-200 shadow-blue-500/10'
             }`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredItems.map((item) => (
-                  <ReviewCard
-                    key={item.id}
-                    item={item}
-                    darkMode={darkMode}
-                    onClick={() => {
-                      setSelectedItemId(item.id);
-                      setIsSearching(false);
-                    }}
-                  />
-                ))}
-              </div>
-              {filteredItems.length === 0 && (
-                <div className="text-center py-12">
-                  <p className={`text-lg ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    没有找到与 "{searchQuery}" 相关的项目
-                  </p>
+              {/* Header */}
+              <div className={`px-4 md:px-5 py-3 border-b ${darkMode ? 'border-slate-700/60' : 'border-slate-200/60'}`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>筛选与排序</div>
+                  <button
+                    onClick={() => setShowFilterPanel(false)}
+                    className={`p-1.5 rounded-full transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}
+                    aria-label="关闭"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
-              )}
+              </div>
+
+              {/* Body */}
+              <div className="px-4 md:px-5 py-4 space-y-5 max-h-[60vh] overflow-auto">
+                {/* 筛选组 */}
+                {(activeTab === 'CANTEEN' || activeTab === 'MENTOR') && (
+                  <div className="space-y-3">
+                    {activeTab === 'CANTEEN' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className={`text-[11px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>食堂</label>
+                          <select
+                            value={selectedCanteenArea}
+                            onChange={(e) => setSelectedCanteenArea(e.target.value)}
+                            className={`w-full px-2.5 py-2 rounded-xl border outline-none text-xs font-bold transition-all ${
+                              darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200 focus:border-blue-500' : 'bg-slate-200/50 border-slate-200 text-slate-800 focus:border-blue-500'
+                            }`}
+                          >
+                            <option value="">全部</option>
+                            {canteenAreas.map(a => (
+                              <option key={a} value={a}>{a}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className={`text-[11px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>楼层</label>
+                          <select
+                            value={selectedCanteenFloor}
+                            onChange={(e) => setSelectedCanteenFloor(e.target.value)}
+                            className={`w-full px-2.5 py-2 rounded-xl border outline-none text-xs font-bold transition-all ${
+                              darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200 focus:border-blue-500' : 'bg-slate-200/50 border-slate-200 text-slate-800 focus:border-blue-500'
+                            }`}
+                          >
+                            <option value="">全部</option>
+                            {canteenFloors.map(f => (
+                              <option key={f} value={f}>{f}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'MENTOR' && (
+                      <div className="space-y-1.5">
+                        <label className={`text-[11px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>学院</label>
+                        <select
+                          value={selectedMentorCollege}
+                          onChange={(e) => setSelectedMentorCollege(e.target.value)}
+                          className={`w-full px-2.5 py-2 rounded-xl border outline-none text-xs font-bold transition-all ${
+                            darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200 focus:border-blue-500' : 'bg-slate-200/50 border-slate-200 text-slate-800 focus:border-blue-500'
+                          }`}
+                        >
+                          <option value="">全部学院</option>
+                          {mentorColleges.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 排序组 */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        if (sortKey === 'RATING') {
+                          setSortOrder((v) => (v === 'ASC' ? 'DESC' : 'ASC'));
+                        } else {
+                          setSortKey('RATING');
+                          setSortOrder('DESC');
+                        }
+                      }}
+                      className={`rounded-xl border px-3 py-2 flex items-center justify-between transition-all ${
+                        sortKey === 'RATING'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
+                          : darkMode
+                            ? 'border-slate-700 text-slate-200 hover:bg-slate-800/60'
+                            : 'border-slate-200 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ArrowUpDown size={14} />
+                        <span className="text-xs font-bold">按评分</span>
+                      </div>
+                      <span className={`text-[10px] font-black ${sortKey === 'RATING' ? 'text-white/95' : darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {sortKey === 'RATING' ? (sortOrder === 'ASC' ? '↑' : '↓') : ''}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (sortKey === 'HEAT') {
+                          setSortOrder((v) => (v === 'ASC' ? 'DESC' : 'ASC'));
+                        } else {
+                          setSortKey('HEAT');
+                          setSortOrder('DESC');
+                        }
+                      }}
+                      className={`rounded-xl border px-3 py-2 flex items-center justify-between transition-all ${
+                        sortKey === 'HEAT'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
+                          : darkMode
+                            ? 'border-slate-700 text-slate-200 hover:bg-slate-800/60'
+                            : 'border-slate-200 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Flame size={14} />
+                        <span className="text-xs font-bold">按热度</span>
+                      </div>
+                      <span className={`text-[10px] font-black ${sortKey === 'HEAT' ? 'text-white/95' : darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {sortKey === 'HEAT' ? (sortOrder === 'ASC' ? '↑' : '↓') : ''}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div>
           )}
+        </div>
+
+        {/* Search Box Wrapper - 处理位置和宽度 */}
+        <div className={`transition-all duration-500 ease-in-out ${
+          isSearching 
+            ? 'fixed inset-x-0 top-[15vh] px-4 md:px-0 flex justify-center z-[70]' 
+            : 'relative w-full md:w-auto md:ml-auto md:max-w-xs z-10'
+        }`}>
+          <div className={`w-full transition-all duration-500 ease-out ${
+            isSearching ? 'md:max-w-2xl md:scale-110 scale-[1.02]' : 'scale-100'
+          }`}>
+            <div className={`relative group ${darkMode ? 'bg-slate-800/90' : 'bg-slate-100/90'} backdrop-blur-lg rounded-2xl shadow-xl border ${isSearching ? 'border-blue-500 ring-4 ring-blue-500/10' : 'border-slate-200'} transition-all duration-300`}>
+              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-blue-500' : 'text-slate-400'}`} size={20} />
+              <input 
+                type="text" 
+                value={searchQuery} 
+                onFocus={() => setIsSearching(true)}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索项目名称或简介..."
+                className={`w-full pl-12 pr-4 py-3 bg-transparent outline-none text-base ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}
+              />
+              {isSearching && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsSearching(false); setSearchQuery(''); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            {/* 实时搜索结果列表 (位于模糊蒙版之上) */}
+            {isSearching && searchQuery && (
+              <div className={`absolute top-full left-0 right-0 mt-6 max-h-[60vh] overflow-y-auto p-6 rounded-3xl border shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 ${
+                darkMode ? 'bg-slate-800/95 border-slate-700 shadow-blue-900/20' : 'bg-slate-100/95 border-slate-100 shadow-blue-500/10'
+              }`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredAndSortedItems.map((item) => (
+                    <ReviewCard
+                      key={item.id}
+                      item={item}
+                      darkMode={darkMode}
+                      onClick={() => {
+                        setSelectedItemId(item.id);
+                        setIsSearching(false);
+                      }}
+                    />
+                  ))}
+                </div>
+                {filteredAndSortedItems.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className={`text-lg ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      没有找到与 "{searchQuery}" 相关的项目
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -256,7 +524,7 @@ export default function ReviewPage() {
         </div>
       ) : (
         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-500 ${isSearching ? 'opacity-10 blur-md pointer-events-none' : 'opacity-100'}`}>
-          {items.map((item) => (
+          {filteredAndSortedItems.map((item) => (
             <ReviewCard
               key={item.id}
               item={item}
@@ -264,9 +532,9 @@ export default function ReviewPage() {
               onClick={() => setSelectedItemId(item.id)}
             />
           ))}
-          {items.length === 0 && (
+          {filteredAndSortedItems.length === 0 && (
             <div className="col-span-full text-center py-20">
-              <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>暂无该分类的项目</p>
+              <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>暂无符合条件的项目</p>
             </div>
           )}
         </div>
@@ -276,7 +544,7 @@ export default function ReviewPage() {
       <button
         onClick={() => {
           if (!isAuthed) {
-            alert('请先登录后再添加评价项');
+            toast.error('请先登录后再添加评价项');
             return;
           }
           setShowAddModal(true);

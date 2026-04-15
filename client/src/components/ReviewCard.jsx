@@ -1,9 +1,18 @@
 import React from 'react';
 import StarRating from './StarRating';
-import { MessageSquare, MapPin, GraduationCap } from 'lucide-react';
+import { MessageSquare, MapPin, School } from 'lucide-react';
 
 export default function ReviewCard({ item, onClick, darkMode }) {
   const featuredReview = item.reviews?.[0];
+  const isMentor = item.type === 'MENTOR';
+
+  const formatStallLocation = (location) => {
+    if (!location) return '';
+    // e.g. "南一 - 1楼" -> "南一-1F"
+    const m = String(location).trim().match(/^(.+?)\s*-\s*(\d+)\s*楼$/);
+    if (m) return `${m[1]}-${m[2]}F`;
+    return String(location).replace(/\s*-\s*/g, '-');
+  };
 
   return (
     <div
@@ -11,7 +20,7 @@ export default function ReviewCard({ item, onClick, darkMode }) {
       className={`group rounded-2xl border p-4 space-y-4 cursor-pointer transition-all transform hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg ${
         darkMode
           ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-800'
-          : 'bg-white border-slate-100 hover:border-blue-100 shadow-sm'
+          : 'bg-slate-100 border-slate-100 hover:border-blue-100 shadow-sm'
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -32,26 +41,18 @@ export default function ReviewCard({ item, onClick, darkMode }) {
             <h3 className={`font-bold text-lg ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
               {item.title}
             </h3>
-            
-            {/* 新增字段显示 */}
-            {(item.location || item.college) && (
-              <div className="flex flex-wrap gap-2 mb-1">
-                {item.location && (
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    darkMode ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-50 text-amber-600 border border-amber-100'
-                  }`}>
-                    <MapPin size={10} />
-                    {item.location}
-                  </span>
-                )}
-                {item.college && (
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    darkMode ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-purple-50 text-purple-600 border border-purple-100'
-                  }`}>
-                    <GraduationCap size={10} />
-                    {item.college}
-                  </span>
-                )}
+
+            {/* 标题下方信息行：档口显示地址，导师显示学院 */}
+            {!isMentor && item.location && (
+              <div className={`flex items-center gap-1.5 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                <MapPin size={14} className={`${darkMode ? 'text-slate-400' : 'text-slate-400'}`} />
+                <span className="truncate">{formatStallLocation(item.location)}</span>
+              </div>
+            )}
+            {isMentor && item.college && (
+              <div className={`flex items-center gap-1.5 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                <School size={14} className={`${darkMode ? 'text-slate-400' : 'text-slate-400'}`} />
+                <span className="truncate">{item.college}</span>
               </div>
             )}
 

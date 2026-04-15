@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GitPullRequest, FileUp, CheckCircle2, ShieldAlert, Search, Loader2, ChevronDown, X, AlertCircle, Upload as UploadIcon } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function BatchUpload({ onNavigate }) {
   const { darkMode } = useTheme();
@@ -107,6 +108,17 @@ export default function BatchUpload({ onNavigate }) {
     }
 
     setUploading(false);
+    
+    const finalStats = {
+      success: files.filter(f => f.status === 'success').length,
+      error: files.filter(f => f.status === 'error').length
+    };
+    
+    if (finalStats.error > 0) {
+      toast.error(`部分文件上传失败 (${finalStats.error} 个)`);
+    } else if (finalStats.success > 0) {
+      toast.success('全部上传成功，请等待审核');
+    }
   };
 
   // 上传单个文件
@@ -170,21 +182,21 @@ export default function BatchUpload({ onNavigate }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-8 animate-in fade-in duration-700">
-      <div className="flex items-center gap-3">
+    <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
+      <div className="flex items-center gap-3 px-2 md:px-0">
         <div className={`p-2 rounded-lg ${darkMode ? 'bg-slate-700 text-white' : 'bg-slate-900 text-white'}`}>
           <GitPullRequest size={24} />
         </div>
         <div>
-          <h2 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>上传资料</h2>
-          <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>一次选择一个或多个文件，高效管理上传队列</p>
+          <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>上传资料</h2>
+          <p className={`text-xs md:text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>一次选择一个或多个文件，高效管理上传队列</p>
         </div>
       </div>
 
-      <div className={`rounded-2xl border shadow-xl p-8 space-y-6 ${
+      <div className={`md:rounded-2xl md:border md:shadow-xl p-4 md:p-8 space-y-6 ${
         darkMode 
-          ? 'bg-slate-800/50 border-slate-700 shadow-slate-900/50' 
-          : 'bg-white border-slate-100 shadow-slate-200/50'
+          ? 'md:bg-slate-800/50 md:border-slate-700 md:shadow-slate-900/50' 
+          : 'md:bg-slate-100 md:border-slate-100 md:shadow-slate-200/50'
       }`}>
         
         {/* 1. 文件拖拽区 */}

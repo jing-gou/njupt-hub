@@ -100,7 +100,7 @@ export default function Home() {
         <button
           onClick={() => toggleFolder(fullPath)}
           className={`w-full flex items-center justify-between p-4 transition-all ${
-            darkMode ? 'hover:bg-slate-800/50' : 'hover:bg-white/50'
+            darkMode ? 'bg-slate-900/20 hover:bg-slate-800/30' : 'bg-slate-100/80 hover:bg-slate-50'
           }`}
           style={{ paddingLeft: `${3 + indent * 0.75}rem` }}
         >
@@ -149,7 +149,7 @@ export default function Home() {
                   <div 
                     key={file.sha} 
                     className={`flex items-center justify-between p-4 transition-colors ${
-                      darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-white'
+                      darkMode ? 'bg-slate-900/20 hover:bg-slate-800/30' : 'bg-slate-100/80 hover:bg-slate-50'
                     }`}
                     style={{ paddingLeft: `${4 + (level + 1) * 0.75}rem` }}
                   >
