@@ -193,7 +193,7 @@ if (isUnderMaintenance && isMobile()) {
       </nav>
 
       {/* 页面内容 */}
-      <main className="min-h-[calc(100vh-73px)] pb-20 md:pb-0">
+      <main className="min-h-[calc(100vh-73px)] pb-0 md:pb-0">
         {currentPage === 'home' ? (
           <Home />
         ) : currentPage === 'reviews' ? (
@@ -216,6 +216,13 @@ if (isUnderMaintenance && isMobile()) {
           <Profile onGoLogin={() => setCurrentPage('login')} />
         )}
       </main>
+
+      <Footer darkMode={darkMode} />
+
+      <main>
+        <div class="h-16 md:hidden"></div>  
+      </main>
+
 
       {/* 移动端底部导航栏 */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t px-2 pb-safe transition-colors ${
@@ -252,7 +259,7 @@ if (isUnderMaintenance && isMobile()) {
         </div>
       </div>
 
-      <Footer darkMode={darkMode} />
+      
     </div>
   );
 }

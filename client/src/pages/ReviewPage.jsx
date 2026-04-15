@@ -156,10 +156,10 @@ export default function ReviewPage() {
 
       <div className="max-w-6xl mx-auto p-4 space-y-8 animate-in fade-in duration-700">
         {/* Navigation & Search Container */}
-      <div className="relative w-full min-h-[4.5rem] flex items-center">
+      <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
         
-        {/* Tabs Container - 固定在左侧，搜索时被遮罩盖住并模糊 */}
-        <div className={`absolute left-0 z-10 transition-all duration-700 ease-in-out ${isSearching ? 'blur-sm opacity-50 pointer-events-none' : 'opacity-100'}`}>
+        {/* Tabs Container - 移动端改为正常流布局，避免与搜索框重叠 */}
+        <div className={`w-full md:w-auto z-10 transition-all duration-700 ease-in-out ${isSearching ? 'blur-sm opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <div
             className={`flex items-center justify-center p-1.5 rounded-2xl border backdrop-blur-md shadow-lg overflow-x-auto no-scrollbar ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white/80 border-slate-100'
@@ -192,14 +192,11 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {/* 动态间隔容器 - 始终填充左侧，确保搜索框默认居右 */}
-        <div className="flex-1 min-w-0" />
-
         {/* Search Box Wrapper - 处理位置和宽度 */}
-        <div className={`transition-all duration-700 ease-in-out relative ${
+        <div className={`transition-all duration-700 ease-in-out relative md:ml-auto ${
           isSearching 
-            ? 'w-full max-w-4xl mx-4 z-[70] transform -translate-y-2' 
-            : 'w-full max-w-xs z-10'
+            ? 'w-full md:max-w-4xl md:mx-4 z-[70] transform -translate-y-2' 
+            : 'w-full md:w-auto max-w-none md:max-w-xs z-10'
         }`}>
           <div className={`relative group ${darkMode ? 'bg-slate-800/90' : 'bg-white/90'} backdrop-blur-lg rounded-2xl shadow-xl border ${isSearching ? 'border-blue-500 ring-4 ring-blue-500/10 scale-105' : 'border-slate-200'} transition-all duration-500`}>
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-blue-500' : 'text-slate-400'}`} size={20} />
@@ -249,9 +246,6 @@ export default function ReviewPage() {
             </div>
           )}
         </div>
-
-        {/* 动态间隔容器 - 搜索时从 0 增长到 flex-1，实现从右向中滑动的动画 */}
-        <div className={`transition-all duration-700 ease-in-out overflow-hidden ${isSearching ? 'flex-1' : 'w-0'}`} />
       </div>
 
       {/* Grid Content (原有的静态列表，搜索时会变模糊) */}
