@@ -499,10 +499,10 @@ export default function ModerationPage() {
         </div>
       </div>
 
-      <div className="flex border-b border-slate-200 dark:border-slate-800 px-2 md:px-0">
+      <div className="flex overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800 px-2 md:px-0">
         <button
           onClick={() => setActiveTab('RESOURCES')}
-          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base whitespace-nowrap shrink-0 ${
             activeTab === 'RESOURCES'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -512,7 +512,7 @@ export default function ModerationPage() {
         </button>
         <button
           onClick={() => setActiveTab('REPORTS')}
-          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base whitespace-nowrap shrink-0 ${
             activeTab === 'REPORTS'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -522,7 +522,7 @@ export default function ModerationPage() {
         </button>
         <button
           onClick={() => setActiveTab('FILES')}
-          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base whitespace-nowrap shrink-0 ${
             activeTab === 'FILES'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -532,7 +532,7 @@ export default function ModerationPage() {
         </button>
         <button
           onClick={() => setActiveTab('PENDING_REVIEWS')}
-          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base whitespace-nowrap shrink-0 ${
             activeTab === 'PENDING_REVIEWS'
               ? 'border-blue-500 text-blue-500'
               : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -593,7 +593,7 @@ export default function ModerationPage() {
                       darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'
                     } ${window.innerWidth < 768 ? 'rounded-xl border' : ''}`}
                   >
-                    <div className="flex-1 space-y-2 w-full">
+                    <div className="flex-1 min-w-0 space-y-2 w-full">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -690,7 +690,7 @@ export default function ModerationPage() {
                       darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2 text-amber-500">
                         <input
                           type="checkbox"
@@ -699,9 +699,9 @@ export default function ModerationPage() {
                           className="w-4 h-4 accent-blue-500"
                         />
                         <AlertTriangle size={18} />
-                        <span className="font-bold text-sm">被举报原因: {report.reason}</span>
+                        <span className="font-bold text-sm break-words">被举报原因: {report.reason}</span>
                       </div>
-                      <span className="text-xs text-slate-500">举报人: {report.user?.username}</span>
+                      <span className="text-xs text-slate-500 whitespace-nowrap shrink-0">举报人: {report.user?.username}</span>
                     </div>
 
                     <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
@@ -709,7 +709,7 @@ export default function ModerationPage() {
                         <span className="text-xs font-bold text-blue-500">被举报评价 ({report.review?.item?.title})</span>
                         <span className="text-xs text-slate-500">作者: {report.review?.reviewer?.username}</span>
                       </div>
-                      <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <p className={`text-sm break-words ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                         {report.review?.comment}
                       </p>
                     </div>
@@ -978,7 +978,7 @@ export default function ModerationPage() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-2">
+                    <div className="space-y-2 min-w-0">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -987,14 +987,14 @@ export default function ModerationPage() {
                           className="w-4 h-4 accent-blue-500"
                         />
                         <MessageSquare size={16} className="text-blue-500" />
-                        <span className={`font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                        <span className={`font-bold truncate ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                           {review.item?.title}
                         </span>
                       </div>
                       <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         作者: {review.reviewer?.username || '-'} · 评分: {Number(review.rating || 0).toFixed(1)}
                       </div>
-                      <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <p className={`text-sm break-words ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                         {review.comment || '（无文字内容）'}
                       </p>
                       {review.imageUrl && (
