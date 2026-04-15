@@ -41,6 +41,15 @@ export default function Home() {
   };
 
   const normalizeRelativePath = (value) => String(value || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  const decodeMojibake = (value) => {
+    const raw = String(value || '');
+    try {
+      // 常见：UTF-8 字节被当 latin1 展示，尝试还原
+      return decodeURIComponent(escape(raw));
+    } catch {
+      return raw;
+    }
+  };
 
   const fetchResources = async () => {
     setLoading(true);
@@ -63,8 +72,8 @@ export default function Home() {
       const root = { files: [], folders: {} };
       
       for (const r of items) {
-        const coursePath = normalizeRelativePath(r.course || '未分类');
-        const originalPath = normalizeRelativePath(r.fileName || extractFileNameFromUrl(r.fileUrl));
+        const coursePath = normalizeRelativePath(decodeMojibake(r.course || '未分类'));
+        const originalPath = normalizeRelativePath(decodeMojibake(r.fileName || extractFileNameFromUrl(r.fileUrl)));
         const subFolders = originalPath.split('/').filter(Boolean).slice(0, -1);
         const originalFileName = originalPath.split('/').filter(Boolean).pop() || extractFileNameFromUrl(r.fileUrl);
         const pathParts = [...coursePath.split('/').filter(Boolean), ...subFolders];

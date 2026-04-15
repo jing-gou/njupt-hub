@@ -6,6 +6,17 @@ const parseIntOr = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const decodeMultipartText = (value) => {
+  const raw = String(value ?? '');
+  try {
+    const decoded = Buffer.from(raw, 'latin1').toString('utf8');
+    if (decoded.includes('�')) return raw;
+    return decoded;
+  } catch {
+    return raw;
+  }
+};
+
 export const listResources = async (req, res) => {
   try {
     const {
@@ -258,14 +269,15 @@ export const uploadResources = async (req, res) => {
       files.map(async (f, idx) => {
         const t = titles[idx];
         const p = paths[idx];
-        const defaultTitle = String(f.originalname).replace(/\.[^/.]+$/, '');
+        const originalName = decodeMultipartText(f.originalname);
+        const defaultTitle = String(originalName).replace(/\.[^/.]+$/, '');
         const title = t ? String(t) : defaultTitle;
         const normalizedPath = p
           ? String(p).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
-          : String(f.originalname);
+          : String(originalName);
         
         // 上传到七牛云 (初始进入待审核目录 pending/)
-        const { url: fileUrl, name: fileKey } = await uploadToQiniu(f.buffer, f.originalname, PREFIX_PENDING, course, f.mimetype);
+        const { url: fileUrl, name: fileKey } = await uploadToQiniu(f.buffer, originalName, PREFIX_PENDING, course, f.mimetype);
         
         let uploaderId = req.user?.id;
         if (!uploaderId) {
