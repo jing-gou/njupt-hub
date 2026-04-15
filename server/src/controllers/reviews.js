@@ -50,6 +50,8 @@ export const getReviewItems = async (req, res) => {
         description: item.description,
         imageUrl: getSignedUrl(item.imageUrl),
         type: item.type,
+        location: item.location,
+        college: item.college,
         avgRating: item.avgRating, // 使用数据库中的字段
         reviewCount: item._count.reviews,
         reviews: item.reviews.map(r => ({
@@ -116,6 +118,8 @@ export const getReviewItemDetail = async (req, res) => {
       description: item.description,
       imageUrl: getSignedUrl(item.imageUrl),
       type: item.type,
+      location: item.location,
+      college: item.college,
       avgRating: item.avgRating,
       reviewCount: item._count.reviews,
       reviews: formattedReviews
