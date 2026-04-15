@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js';
-import { uploadToQiniu, getSignedUrl, moveFile, deleteFile, PREFIX_PENDING, PREFIX_PUBLIC } from '../lib/qiniu.js';
+import { uploadToQiniu, getSignedUrl, moveFile, deleteFile, PREFIX_PENDING, PREFIX_PUBLIC, normalizeStoredFileKey } from '../lib/qiniu.js';
 
 const parseIntOr = (value, fallback) => {
   const parsed = Number.parseInt(String(value), 10);
@@ -191,6 +191,67 @@ export const updateResourceStatus = async (req, res) => {
     if (error?.code === 'P2025') {
       return res.status(404).json({ message: '资源未找到' });
     }
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateResourceMeta = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: '无效的 ID' });
+    }
+
+    const { title } = req.body ?? {};
+    const nextTitle = String(title || '').trim();
+    if (!nextTitle) {
+      return res.status(400).json({ message: '标题不能为空' });
+    }
+
+    const updated = await prisma.resource.update({
+      where: { id },
+      data: { title: nextTitle },
+      include: {
+        uploader: { select: { id: true, username: true, email: true, role: true } },
+      },
+    });
+
+    return res.status(200).json({
+      ...updated,
+      fileUrl: getSignedUrl(updated.fileKey || updated.fileUrl),
+    });
+  } catch (error) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ message: '资源未找到' });
+    }
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteResourceByAdmin = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: '无效的 ID' });
+    }
+
+    const resource = await prisma.resource.findUnique({ where: { id } });
+    if (!resource) {
+      return res.status(404).json({ message: '资源未找到' });
+    }
+
+    const fileKey = resource.fileKey || normalizeStoredFileKey(resource.fileUrl);
+    if (fileKey) {
+      try {
+        await deleteFile(fileKey);
+      } catch (deleteErr) {
+        console.error('Failed to delete file from cloud storage:', deleteErr);
+      }
+    }
+
+    await prisma.resource.delete({ where: { id } });
+    return res.status(200).json({ message: '资源已删除' });
+  } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 };

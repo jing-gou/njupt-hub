@@ -10,7 +10,9 @@ import {
   Trash2, 
   AlertTriangle,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  FolderOpen,
+  Search
 } from 'lucide-react';
 
 export default function ModerationPage() {
@@ -23,6 +25,9 @@ export default function ModerationPage() {
   const [actionLoading, setActionLoading] = useState(null);
   const [selectedResourceIds, setSelectedResourceIds] = useState([]);
   const [selectedReportIds, setSelectedReportIds] = useState([]);
+  const [fileManagerItems, setFileManagerItems] = useState([]);
+  const [fileManagerStatus, setFileManagerStatus] = useState('ALL');
+  const [fileManagerQuery, setFileManagerQuery] = useState('');
 
   // 新增状态：控制确认弹窗
   const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, reviewId: null });
@@ -51,8 +56,13 @@ export default function ModerationPage() {
 
   const loadData = async () => {
     setLoading(true);
-    if (activeTab === 'RESOURCES') await fetchResources();
-    else await fetchReports();
+    if (activeTab === 'RESOURCES') {
+      await fetchResources();
+    } else if (activeTab === 'REPORTS') {
+      await fetchReports();
+    } else {
+      await fetchFileManagerItems();
+    }
     setLoading(false);
   };
 
@@ -73,6 +83,24 @@ export default function ModerationPage() {
     setSelectedReportIds((prev) => prev.filter((id) => reports.some((r) => r.id === id)));
   }, [reports]);
 
+  const fetchFileManagerItems = async () => {
+    try {
+      const qs = new URLSearchParams({ pageSize: '100' });
+      if (fileManagerStatus !== 'ALL') qs.set('status', fileManagerStatus);
+      if (fileManagerQuery.trim()) qs.set('q', fileManagerQuery.trim());
+      const res = await fetch(`/api/resources?${qs.toString()}`);
+      const data = await res.json();
+      setFileManagerItems(Array.isArray(data?.items) ? data.items : []);
+    } catch (err) {
+      console.error('Fetch file manager resources error:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'FILES') return;
+    fetchFileManagerItems();
+  }, [activeTab, fileManagerStatus]);
+
   const handleResourceAction = async (id, status) => {
     setActionLoading(id);
     try {
@@ -86,6 +114,7 @@ export default function ModerationPage() {
       });
       if (res.ok) {
         setResources(resources.filter(r => r.id !== id));
+        setFileManagerItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
         toast.success('操作成功');
       }
     } catch (err) {
@@ -127,6 +156,56 @@ export default function ModerationPage() {
       }
     } catch (err) {
       toast.error('忽略失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRenameResource = async (item) => {
+    const nextTitle = window.prompt('请输入新的文件标题', item.title || '');
+    if (nextTitle == null) return;
+    const trimmed = nextTitle.trim();
+    if (!trimmed) return toast.error('标题不能为空');
+
+    setActionLoading(`rename-${item.id}`);
+    try {
+      const res = await fetch(`/api/resources/${item.id}/meta`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || '重命名失败');
+      setFileManagerItems((prev) => prev.map((v) => (v.id === item.id ? { ...v, title: trimmed } : v)));
+      setResources((prev) => prev.map((v) => (v.id === item.id ? { ...v, title: trimmed } : v)));
+      toast.success('重命名成功');
+    } catch (err) {
+      toast.error(err.message || '重命名失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteResource = async (item) => {
+    const confirmed = window.confirm(`确认删除文件「${item.title}」吗？将同时删除云端文件和数据库记录。`);
+    if (!confirmed) return;
+
+    setActionLoading(`delete-${item.id}`);
+    try {
+      const res = await fetch(`/api/resources/${item.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || '删除失败');
+      setFileManagerItems((prev) => prev.filter((v) => v.id !== item.id));
+      setResources((prev) => prev.filter((v) => v.id !== item.id));
+      toast.success('删除成功');
+    } catch (err) {
+      toast.error(err.message || '删除失败');
     } finally {
       setActionLoading(null);
     }
@@ -272,6 +351,16 @@ export default function ModerationPage() {
         >
           举报处理 ({reports.length})
         </button>
+        <button
+          onClick={() => setActiveTab('FILES')}
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
+            activeTab === 'FILES'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          文件管理 ({fileManagerItems.length})
+        </button>
       </div>
 
       {loading ? (
@@ -375,7 +464,7 @@ export default function ModerationPage() {
                 ))}
               </div>
             )
-          ) : (
+          ) : activeTab === 'REPORTS' ? (
             reports.length === 0 ? (
               <div className="text-center py-20 text-slate-500">暂无待处理举报</div>
             ) : (
@@ -498,6 +587,122 @@ export default function ModerationPage() {
                 ))}
               </div>
             )
+          ) : (
+            <div className="space-y-4">
+              <div className={`p-3 rounded-xl border flex flex-wrap items-center gap-3 ${
+                darkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200'
+              }`}>
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={fileManagerQuery}
+                    onChange={(e) => setFileManagerQuery(e.target.value)}
+                    placeholder="按标题或描述搜索..."
+                    className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none ${
+                      darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+                    }`}
+                  />
+                </div>
+                <select
+                  value={fileManagerStatus}
+                  onChange={(e) => setFileManagerStatus(e.target.value)}
+                  className={`px-3 py-2 rounded-lg border text-sm ${
+                    darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <option value="ALL">全部状态</option>
+                  <option value="PENDING">审核中</option>
+                  <option value="APPROVED">已通过</option>
+                  <option value="REJECTED">已驳回</option>
+                </select>
+                <button
+                  onClick={fetchFileManagerItems}
+                  className={`px-3 py-2 rounded-lg text-sm font-bold ${
+                    darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  刷新
+                </button>
+              </div>
+
+              {fileManagerItems.length === 0 ? (
+                <div className="text-center py-20 text-slate-500">暂无文件</div>
+              ) : (
+                <div className="grid gap-4">
+                  {fileManagerItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`p-4 md:p-5 rounded-2xl border space-y-3 ${
+                        darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <FolderOpen size={16} className="text-blue-500" />
+                            <h3 className={`font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{item.title}</h3>
+                          </div>
+                          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            课程: {item.course} · 文件: {item.fileName || '-'}
+                          </div>
+                          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            上传者: {item.uploader?.username || '-'} · 下载: {item.downloadCount ?? 0}
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          item.status === 'APPROVED' ? 'bg-green-500/10 text-green-500' :
+                          item.status === 'REJECTED' ? 'bg-red-500/10 text-red-500' :
+                          'bg-amber-500/10 text-amber-500'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <a
+                          href={item.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 inline-flex items-center gap-1"
+                        >
+                          查看文件 <ExternalLink size={12} />
+                        </a>
+                        <button
+                          onClick={() => handleResourceAction(item.id, 'APPROVED')}
+                          disabled={actionLoading === item.id}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50"
+                        >
+                          设为可见
+                        </button>
+                        <button
+                          onClick={() => handleResourceAction(item.id, 'REJECTED')}
+                          disabled={actionLoading === item.id}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                        >
+                          设为隐藏
+                        </button>
+                        <button
+                          onClick={() => handleRenameResource(item)}
+                          disabled={actionLoading === `rename-${item.id}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                            darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          } disabled:opacity-50`}
+                        >
+                          重命名
+                        </button>
+                        <button
+                          onClick={() => handleDeleteResource(item)}
+                          disabled={actionLoading === `delete-${item.id}`}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          删除文件
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
