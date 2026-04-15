@@ -21,8 +21,9 @@ jobs:
             cd /var/www/html/njupt-hub/njupt-hub
             git pull origin master
             
-            
             docker-compose up -d --build 
-            
+
+            # 执行 Prisma 迁移并重新生成 Client（非交互）
+            docker-compose exec -T server sh -lc "npx prisma migrate deploy && npx prisma generate"
             
             docker image prune -f
