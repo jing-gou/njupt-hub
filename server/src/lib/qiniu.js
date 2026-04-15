@@ -6,7 +6,9 @@ import 'dotenv/config'; // 确保在读取变量前加载配置
 const accessKey = process.env.QINIU_ACCESS_KEY;
 const secretKey = process.env.QINIU_SECRET_KEY;
 const bucket = process.env.QINIU_BUCKET;
-const domain = process.env.QINIU_DOMAIN;
+const rawDomain = String(process.env.QINIU_DOMAIN || '').trim();
+const domain = rawDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+const protocol = String(process.env.QINIU_PROTOCOL || 'https').toLowerCase() === 'http' ? 'http' : 'https';
 
 const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
 const config = new qiniu.conf.Config();
@@ -50,7 +52,7 @@ export const uploadToQiniu = async (buffer, originalName, prefix = PREFIX_PENDIN
       if (respErr) {
         reject(respErr);
       } else if (respInfo.statusCode === 200) {
-        const url = `http://${domain}/${fullPath}`;
+        const url = `${protocol}://${domain}/${fullPath}`;
         resolve({
           url,
           name: fullPath,
@@ -75,7 +77,7 @@ export const moveFile = async (srcKey, destKey) => {
         reject(err);
       } else if (respInfo.statusCode === 200) {
         resolve({
-          url: `http://${domain}/${destKey}`,
+          url: `${protocol}://${domain}/${destKey}`,
           name: destKey
         });
       } else {
@@ -89,8 +91,6 @@ export const moveFile = async (srcKey, destKey) => {
  * 内部签名逻辑
  */
 const signUrl = (key, expires) => {
-  // 构造基础 URL (优先使用 https，除非是七牛测试域名可能只支持 http)
-  const protocol = domain.includes('.clouddn.com') ? 'http' : 'https';
   const baseUrl = encodeURI(`${protocol}://${domain.replace(/\/$/, '')}/${key}`);
   
   // 判断是否需要签名
