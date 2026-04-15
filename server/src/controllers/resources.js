@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { uploadToQiniu, getSignedUrl, moveFile, deleteFile, PREFIX_PENDING, PREFIX_PUBLIC, normalizeStoredFileKey } from '../lib/qiniu.js';
+import { EXPERIENCE_REWARD } from '../lib/experience.js';
 
 const parseIntOr = (value, fallback) => {
   const parsed = Number.parseInt(String(value), 10);
@@ -148,7 +149,10 @@ export const updateResourceStatus = async (req, res) => {
       return res.status(400).json({ message: '无效的状态值' });
     }
 
-    const resource = await prisma.resource.findUnique({ where: { id } });
+    const resource = await prisma.resource.findUnique({
+      where: { id },
+      select: { id: true, status: true, fileKey: true, fileUrl: true, uploaderId: true },
+    });
     if (!resource) {
       return res.status(404).json({ message: '资源未找到' });
     }
@@ -178,9 +182,24 @@ export const updateResourceStatus = async (req, res) => {
       updateData.fileKey = null;
     }
 
-    const updated = await prisma.resource.update({
-      where: { id },
-      data: updateData,
+    const prevStatus = resource.status;
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.resource.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // 经验结算：仅当审核通过时加经验，且只结算一次
+      if (prevStatus !== 'APPROVED' && status === 'APPROVED') {
+        await tx.user.updateMany({
+          where: {
+            id: resource.uploaderId,
+            username: { not: '游客' },
+          },
+          data: { experience: { increment: EXPERIENCE_REWARD.UPLOAD_RESOURCE } },
+        });
+      }
+      return next;
     });
 
     return res.status(200).json({

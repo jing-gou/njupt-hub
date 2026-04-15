@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 export default function BatchUpload({ onNavigate }) {
   const { darkMode } = useTheme();
-  const { token, isAuthed } = useAuth();
+  const { token, isAuthed, refreshMe } = useAuth();
 
   const [files, setFiles] = useState([]); // 文件队列
   const [courseName, setCourseName] = useState('');
@@ -84,6 +84,7 @@ export default function BatchUpload({ onNavigate }) {
 
     setUploading(true);
 
+    let anySuccess = false;
     for (const fileItem of files) {
       if (fileItem.status === 'success') continue; // 跳过已成功的
 
@@ -94,6 +95,7 @@ export default function BatchUpload({ onNavigate }) {
 
       try {
         await uploadSingleFile(fileItem);
+        anySuccess = true;
         
         // 上传成功
         setFiles(prev => prev.map(f => 
@@ -108,6 +110,16 @@ export default function BatchUpload({ onNavigate }) {
     }
 
     setUploading(false);
+
+    if (isAuthed && anySuccess) {
+      try {
+        const me = await refreshMe();
+        const exp = me?.user?.experience;
+        if (typeof exp === 'number') toast.success(`经验已更新：${exp} EXP`);
+      } catch (e) {
+        // ignore
+      }
+    }
     
     const finalStats = {
       success: files.filter(f => f.status === 'success').length,

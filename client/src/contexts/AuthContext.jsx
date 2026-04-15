@@ -138,6 +138,70 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
+  const updateProfile = useCallback(async ({ username }) => {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ username }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.message || data?.error || `修改资料失败 (${res.status})`);
+    }
+    if (data?.token && data?.user) setAuth(data.token, data.user);
+    return data;
+  }, [token]);
+
+  const changePassword = useCallback(async ({ currentPassword, newPassword }) => {
+    const res = await fetch('/api/auth/password', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.message || data?.error || `修改密码失败 (${res.status})`);
+    }
+    return data;
+  }, [token]);
+
+  const refreshMe = useCallback(async () => {
+    if (!token) return null;
+    const res = await fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.message || data?.error || `获取用户信息失败 (${res.status})`);
+    }
+    if (data?.user) setAuth(token, data.user);
+    return data;
+  }, [token]);
+
+  const uploadAvatar = useCallback(async (file) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const res = await fetch('/api/auth/avatar', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.message || data?.error || `上传头像失败 (${res.status})`);
+    }
+    if (data?.user) setAuth(token, data.user);
+    return data;
+  }, [token]);
+
   const logout = useCallback(() => setAuth('', null), []);
 
   const value = useMemo(
@@ -151,9 +215,13 @@ export const AuthProvider = ({ children }) => {
       setAuth, 
       sendVerificationCode,
       sendResetPasswordCode,
-      resetPassword
+      resetPassword,
+      updateProfile,
+      changePassword,
+      uploadAvatar,
+      refreshMe
     }),
-    [token, user, login, register, logout, sendVerificationCode, sendResetPasswordCode, resetPassword],
+    [token, user, login, register, logout, sendVerificationCode, sendResetPasswordCode, resetPassword, updateProfile, changePassword, uploadAvatar, refreshMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

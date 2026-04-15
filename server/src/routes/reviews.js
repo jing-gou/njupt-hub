@@ -12,7 +12,11 @@ import {
   deleteReviewByAdmin,
   dismissReport,
   uploadReviewImage,
-  createReviewItem
+  createReviewItem,
+  getPendingReviews,
+  updateReviewStatusByAdmin,
+  updateOwnReview,
+  deleteOwnReview
 } from '../controllers/reviews.js';
 import { requireAuth, optionalAuth, requireRole } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
@@ -30,6 +34,8 @@ const reviewLimiter = rateLimit({
 
 // 管理员接口
 router.get('/admin/reports', requireAuth, requireRole('ADMIN', 'DEV'), getReports);
+router.get('/admin/pending-reviews', requireAuth, requireRole('ADMIN', 'DEV'), getPendingReviews);
+router.patch('/admin/reviews/:reviewId/status', requireAuth, requireRole('ADMIN', 'DEV'), updateReviewStatusByAdmin);
 router.delete('/admin/reviews/:reviewId', requireAuth, requireRole('ADMIN', 'DEV'), deleteReviewByAdmin);
 router.delete('/admin/reports/:reportId', requireAuth, requireRole('ADMIN', 'DEV'), dismissReport);
 router.post('/items', requireAuth, createReviewItem);
@@ -43,6 +49,8 @@ router.post('/upload-image', requireAuth, upload.single('image'), uploadReviewIm
 router.post('/:reviewId/like', requireAuth, toggleLikeReview);
 router.post('/:reviewId/reply', requireAuth, createReply);
 router.post('/:reviewId/report', requireAuth, reportReview);
+router.patch('/:reviewId', requireAuth, updateOwnReview);
+router.delete('/:reviewId', requireAuth, deleteOwnReview);
 
 // 用户统计
 router.get('/user/stats', requireAuth, getUserStats);

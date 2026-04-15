@@ -10,6 +10,7 @@ import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
 import ReviewPage from './pages/ReviewPage';
 import ModerationPage from './pages/ModerationPage';
+import Leaderboard from './pages/Leaderboard';
 import { Search, Upload as UploadIcon, LogIn, CircleUserRound, MessageSquareText, ShieldAlert } from 'lucide-react';
 import Footer from './components/Footer';
 import Maintenance from './pages/Maintenance';
@@ -241,11 +242,13 @@ if (isUnderMaintenance && isMobile()) {
       {/* 页面内容 */}
       <main className="min-h-[calc(100vh-73px)] pb-0 md:pb-0">
         {currentPage === 'home' ? (
-          <Home />
+          <Home onNavigate={setCurrentPage} />
         ) : currentPage === 'reviews' ? (
           <ReviewPage />
         ) : currentPage === 'upload' ? (
           <Upload onNavigate={setCurrentPage} />
+        ) : currentPage === 'leaderboard' ? (
+          <Leaderboard onBack={() => setCurrentPage('home')} />
         ) : currentPage === 'moderation' && isAdmin ? (
           <ModerationPage />
         ) : currentPage === 'login' ? (

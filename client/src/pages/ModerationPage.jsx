@@ -12,7 +12,8 @@ import {
   Loader2,
   ExternalLink,
   FolderOpen,
-  Search
+  Search,
+  MessageSquare
 } from 'lucide-react';
 
 export default function ModerationPage() {
@@ -21,13 +22,16 @@ export default function ModerationPage() {
   const [activeTab, setActiveTab] = useState('RESOURCES'); // RESOURCES or REPORTS
   const [resources, setResources] = useState([]);
   const [reports, setReports] = useState([]);
+  const [pendingReviews, setPendingReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [selectedResourceIds, setSelectedResourceIds] = useState([]);
   const [selectedReportIds, setSelectedReportIds] = useState([]);
   const [fileManagerItems, setFileManagerItems] = useState([]);
-  const [fileManagerStatus, setFileManagerStatus] = useState('ALL');
+  const [fileManagerStatus, setFileManagerStatus] = useState('ACTIVE');
   const [fileManagerQuery, setFileManagerQuery] = useState('');
+  const [selectedFileManagerIds, setSelectedFileManagerIds] = useState([]);
+  const [selectedPendingReviewIds, setSelectedPendingReviewIds] = useState([]);
 
   // 新增状态：控制确认弹窗
   const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, reviewId: null });
@@ -54,12 +58,26 @@ export default function ModerationPage() {
     }
   };
 
+  const fetchPendingReviews = async () => {
+    try {
+      const res = await fetch('/api/reviews/admin/pending-reviews', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setPendingReviews(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Fetch pending reviews error:', err);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     if (activeTab === 'RESOURCES') {
       await fetchResources();
     } else if (activeTab === 'REPORTS') {
       await fetchReports();
+    } else if (activeTab === 'PENDING_REVIEWS') {
+      await fetchPendingReviews();
     } else {
       await fetchFileManagerItems();
     }
@@ -73,6 +91,8 @@ export default function ModerationPage() {
   useEffect(() => {
     setSelectedResourceIds([]);
     setSelectedReportIds([]);
+    setSelectedFileManagerIds([]);
+    setSelectedPendingReviewIds([]);
   }, [activeTab]);
 
   useEffect(() => {
@@ -83,14 +103,92 @@ export default function ModerationPage() {
     setSelectedReportIds((prev) => prev.filter((id) => reports.some((r) => r.id === id)));
   }, [reports]);
 
+  useEffect(() => {
+    setSelectedFileManagerIds((prev) => prev.filter((id) => fileManagerItems.some((r) => r.id === id)));
+  }, [fileManagerItems]);
+
+  useEffect(() => {
+    setSelectedPendingReviewIds((prev) => prev.filter((id) => pendingReviews.some((r) => r.id === id)));
+  }, [pendingReviews]);
+
+  const handlePendingReviewStatus = async (reviewId, status) => {
+    setActionLoading(`pending-${reviewId}-${status}`);
+    try {
+      const res = await fetch(`/api/reviews/admin/reviews/${reviewId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || '操作失败');
+      setPendingReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      setSelectedPendingReviewIds((prev) => prev.filter((id) => id !== reviewId));
+      toast.success('操作成功');
+    } catch (err) {
+      toast.error(err.message || '操作失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const togglePendingReviewSelection = (id) => {
+    setSelectedPendingReviewIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllPendingReviews = () => {
+    if (selectedPendingReviewIds.length === pendingReviews.length) {
+      setSelectedPendingReviewIds([]);
+    } else {
+      setSelectedPendingReviewIds(pendingReviews.map((r) => r.id));
+    }
+  };
+
+  const handleBatchPendingReviewAction = async (status) => {
+    if (selectedPendingReviewIds.length === 0) return;
+    setActionLoading(`batch-pending-${status}`);
+    try {
+      const tasks = selectedPendingReviewIds.map((id) =>
+        fetch(`/api/reviews/admin/reviews/${id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status }),
+        })
+      );
+      const results = await Promise.all(tasks);
+      const successIds = selectedPendingReviewIds.filter((_, idx) => results[idx].ok);
+      setPendingReviews((prev) => prev.filter((r) => !successIds.includes(r.id)));
+      setSelectedPendingReviewIds([]);
+      toast.success(`批量处理完成：成功 ${successIds.length} / ${results.length}`);
+    } catch (err) {
+      toast.error('批量处理失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const fetchFileManagerItems = async () => {
     try {
       const qs = new URLSearchParams({ pageSize: '100' });
-      if (fileManagerStatus !== 'ALL') qs.set('status', fileManagerStatus);
+      if (fileManagerStatus === 'APPROVED' || fileManagerStatus === 'PENDING' || fileManagerStatus === 'REJECTED') {
+        qs.set('status', fileManagerStatus);
+      }
       if (fileManagerQuery.trim()) qs.set('q', fileManagerQuery.trim());
       const res = await fetch(`/api/resources?${qs.toString()}`);
       const data = await res.json();
-      setFileManagerItems(Array.isArray(data?.items) ? data.items : []);
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setFileManagerItems(
+        fileManagerStatus === 'ACTIVE'
+          ? items.filter((item) => item.status !== 'REJECTED')
+          : items
+      );
     } catch (err) {
       console.error('Fetch file manager resources error:', err);
     }
@@ -206,6 +304,77 @@ export default function ModerationPage() {
       toast.success('删除成功');
     } catch (err) {
       toast.error(err.message || '删除失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const toggleFileManagerSelection = (id) => {
+    setSelectedFileManagerIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllFileManager = () => {
+    if (selectedFileManagerIds.length === fileManagerItems.length) {
+      setSelectedFileManagerIds([]);
+    } else {
+      setSelectedFileManagerIds(fileManagerItems.map((r) => r.id));
+    }
+  };
+
+  const handleBatchFileManagerStatus = async (status) => {
+    if (selectedFileManagerIds.length === 0) return;
+    setActionLoading(`bulk-file-status-${status}`);
+    try {
+      const tasks = selectedFileManagerIds.map((id) =>
+        fetch(`/api/resources/${id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status }),
+        })
+      );
+      const results = await Promise.all(tasks);
+      const successIds = selectedFileManagerIds.filter((_, idx) => results[idx].ok);
+      setFileManagerItems((prev) =>
+        prev.map((item) => (successIds.includes(item.id) ? { ...item, status } : item))
+      );
+      setResources((prev) =>
+        prev.map((item) => (successIds.includes(item.id) ? { ...item, status } : item))
+      );
+      setSelectedFileManagerIds([]);
+      toast.success(`批量操作完成：成功 ${successIds.length} / ${results.length}`);
+    } catch (err) {
+      toast.error('批量操作失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBatchDeleteResources = async () => {
+    if (selectedFileManagerIds.length === 0) return;
+    const confirmed = window.confirm(`确认删除 ${selectedFileManagerIds.length} 个文件吗？将同时删除云端文件和数据库记录。`);
+    if (!confirmed) return;
+
+    setActionLoading('bulk-file-delete');
+    try {
+      const tasks = selectedFileManagerIds.map((id) =>
+        fetch(`/api/resources/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+      );
+      const results = await Promise.all(tasks);
+      const successIds = selectedFileManagerIds.filter((_, idx) => results[idx].ok);
+      setFileManagerItems((prev) => prev.filter((item) => !successIds.includes(item.id)));
+      setResources((prev) => prev.filter((item) => !successIds.includes(item.id)));
+      setSelectedFileManagerIds([]);
+      toast.success(`批量删除完成：成功 ${successIds.length} / ${results.length}`);
+    } catch (err) {
+      toast.error('批量删除失败');
     } finally {
       setActionLoading(null);
     }
@@ -360,6 +529,16 @@ export default function ModerationPage() {
           }`}
         >
           文件管理 ({fileManagerItems.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('PENDING_REVIEWS')}
+          className={`pb-4 px-4 font-bold transition-all border-b-2 text-sm md:text-base ${
+            activeTab === 'PENDING_REVIEWS'
+              ? 'border-blue-500 text-blue-500'
+              : 'border-transparent text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          待审评论 ({pendingReviews.length})
         </button>
       </div>
 
@@ -587,7 +766,7 @@ export default function ModerationPage() {
                 ))}
               </div>
             )
-          ) : (
+          ) : activeTab === 'FILES' ? (
             <div className="space-y-4">
               <div className={`p-3 rounded-xl border flex flex-wrap items-center gap-3 ${
                 darkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200'
@@ -610,6 +789,7 @@ export default function ModerationPage() {
                     darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
                   }`}
                 >
+                  <option value="ACTIVE">默认（不含已驳回）</option>
                   <option value="ALL">全部状态</option>
                   <option value="PENDING">审核中</option>
                   <option value="APPROVED">已通过</option>
@@ -625,6 +805,49 @@ export default function ModerationPage() {
                 </button>
               </div>
 
+              {fileManagerItems.length > 0 && (
+                <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+                  darkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={toggleSelectAllFileManager}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        darkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {selectedFileManagerIds.length === fileManagerItems.length ? '取消全选' : '全选'}
+                    </button>
+                    <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      已选 {selectedFileManagerIds.length} / {fileManagerItems.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleBatchFileManagerStatus('APPROVED')}
+                      disabled={selectedFileManagerIds.length === 0 || actionLoading === 'bulk-file-status-APPROVED'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50"
+                    >
+                      批量设为可见
+                    </button>
+                    <button
+                      onClick={() => handleBatchFileManagerStatus('REJECTED')}
+                      disabled={selectedFileManagerIds.length === 0 || actionLoading === 'bulk-file-status-REJECTED'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                    >
+                      批量设为隐藏
+                    </button>
+                    <button
+                      onClick={handleBatchDeleteResources}
+                      disabled={selectedFileManagerIds.length === 0 || actionLoading === 'bulk-file-delete'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      批量删除
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {fileManagerItems.length === 0 ? (
                 <div className="text-center py-20 text-slate-500">暂无文件</div>
               ) : (
@@ -639,6 +862,12 @@ export default function ModerationPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedFileManagerIds.includes(item.id)}
+                              onChange={() => toggleFileManagerSelection(item.id)}
+                              className="w-4 h-4 accent-blue-500"
+                            />
                             <FolderOpen size={16} className="text-blue-500" />
                             <h3 className={`font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{item.title}</h3>
                           </div>
@@ -702,6 +931,102 @@ export default function ModerationPage() {
                   ))}
                 </div>
               )}
+            </div>
+          ) : pendingReviews.length === 0 ? (
+            <div className="text-center py-20 text-slate-500">暂无待审核评论</div>
+          ) : (
+            <div className="grid gap-4">
+              <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+                darkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={toggleSelectAllPendingReviews}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                      darkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {selectedPendingReviewIds.length === pendingReviews.length ? '取消全选' : '全选'}
+                  </button>
+                  <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    已选 {selectedPendingReviewIds.length} / {pendingReviews.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleBatchPendingReviewAction('APPROVED')}
+                    disabled={selectedPendingReviewIds.length === 0 || actionLoading === 'batch-pending-APPROVED'}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50"
+                  >
+                    批量通过
+                  </button>
+                  <button
+                    onClick={() => handleBatchPendingReviewAction('REJECTED')}
+                    disabled={selectedPendingReviewIds.length === 0 || actionLoading === 'batch-pending-REJECTED'}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                  >
+                    批量驳回
+                  </button>
+                </div>
+              </div>
+
+              {pendingReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className={`p-4 md:p-5 rounded-2xl border space-y-3 ${
+                    darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedPendingReviewIds.includes(review.id)}
+                          onChange={() => togglePendingReviewSelection(review.id)}
+                          className="w-4 h-4 accent-blue-500"
+                        />
+                        <MessageSquare size={16} className="text-blue-500" />
+                        <span className={`font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                          {review.item?.title}
+                        </span>
+                      </div>
+                      <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        作者: {review.reviewer?.username || '-'} · 评分: {Number(review.rating || 0).toFixed(1)}
+                      </div>
+                      <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {review.comment || '（无文字内容）'}
+                      </p>
+                      {review.imageUrl && (
+                        <a
+                          href={review.imageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-blue-500 hover:underline inline-flex items-center gap-1"
+                        >
+                          查看评论图片 <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => handlePendingReviewStatus(review.id, 'APPROVED')}
+                        disabled={Boolean(actionLoading)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50"
+                      >
+                        通过
+                      </button>
+                      <button
+                        onClick={() => handlePendingReviewStatus(review.id, 'REJECTED')}
+                        disabled={Boolean(actionLoading)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                      >
+                        驳回
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

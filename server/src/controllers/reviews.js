@@ -1,5 +1,50 @@
 import prisma from '../lib/prisma.js';
 import { uploadToQiniu, PREFIX_ASSETS, getSignedUrl, normalizeStoredFileKey } from '../lib/qiniu.js';
+import { EXPERIENCE_REWARD } from '../lib/experience.js';
+
+const REVIEW_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+};
+
+const LIKE_GAIN_EXP = 2;
+
+const getPublicReviewWhere = (userId) => {
+  if (!userId) return { status: REVIEW_STATUS.APPROVED };
+  return {
+    OR: [
+      { status: REVIEW_STATUS.APPROVED },
+      { reviewerId: userId },
+    ],
+  };
+};
+
+const calculateWeightedAverage = (reviews) => {
+  let weightedSum = 0;
+  let totalWeight = 0;
+  reviews.forEach((r) => {
+    const weight = r.reviewer?.username === '游客' ? 0.2 : 0.8;
+    weightedSum += r.rating * weight;
+    totalWeight += weight;
+  });
+  return totalWeight > 0 ? weightedSum / totalWeight : 0;
+};
+
+const recalculateItemAvgRating = async (tx, itemId) => {
+  const approvedReviews = await tx.review.findMany({
+    where: { itemId, status: REVIEW_STATUS.APPROVED },
+    include: {
+      reviewer: { select: { username: true } },
+    },
+  });
+
+  const avgRating = calculateWeightedAverage(approvedReviews);
+  await tx.reviewableItem.update({
+    where: { id: itemId },
+    data: { avgRating },
+  });
+};
 
 // 上传评价图片
 export const uploadReviewImage = async (req, res) => {
@@ -27,16 +72,17 @@ export const getReviewItems = async (req, res) => {
       where: type ? { type } : {},
       include: {
         reviews: {
+          where: { status: REVIEW_STATUS.APPROVED },
           orderBy: { createdAt: 'desc' },
           take: 1, // 只取一条最新的作为精选评价
           include: {
             reviewer: {
-              select: { username: true }
+              select: { username: true, avatarKey: true }
             }
           }
         },
         _count: {
-          select: { reviews: true }
+          select: { reviews: { where: { status: REVIEW_STATUS.APPROVED } } }
         }
       }
     });
@@ -56,6 +102,12 @@ export const getReviewItems = async (req, res) => {
         reviewCount: item._count.reviews,
         reviews: item.reviews.map(r => ({
           ...r,
+          reviewer: r.reviewer
+            ? {
+                ...r.reviewer,
+                avatarUrl: getSignedUrl(r.reviewer.avatarKey),
+              }
+            : null,
           imageUrl: getSignedUrl(r.imageUrl)
         }))
       };
@@ -78,10 +130,11 @@ export const getReviewItemDetail = async (req, res) => {
       where: { id: parseInt(id) },
       include: {
         reviews: {
+          where: getPublicReviewWhere(userId),
           orderBy: { createdAt: 'desc' },
           include: {
             reviewer: {
-              select: { username: true }
+              select: { username: true, avatarKey: true }
             },
             likes: {
               select: { userId: true }
@@ -108,6 +161,12 @@ export const getReviewItemDetail = async (req, res) => {
     const formattedReviews = item.reviews.map(r => ({
       ...r,
       imageUrl: getSignedUrl(r.imageUrl),
+      reviewer: r.reviewer
+        ? {
+            ...r.reviewer,
+            avatarUrl: getSignedUrl(r.reviewer.avatarKey),
+          }
+        : null,
       isLiked: userId ? r.likes.some(l => l.userId === userId) : false,
       likesCount: r.likes.length
     }));
@@ -135,28 +194,54 @@ export const toggleLikeReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
     const userId = req.user.id;
+    const id = parseInt(reviewId, 10);
+
+    const targetReview = await prisma.review.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        reviewerId: true,
+        reviewer: { select: { username: true } },
+      },
+    });
+    if (!targetReview) {
+      return res.status(404).json({ message: '评价不存在' });
+    }
 
     const existingLike = await prisma.like.findFirst({
-      where: {
-        userId,
-        reviewId: parseInt(reviewId)
-      }
+      where: { userId, reviewId: id }
     });
 
     if (existingLike) {
-      await prisma.like.delete({
-        where: { id: existingLike.id }
-      });
-      return res.json({ liked: false });
-    } else {
-      await prisma.like.create({
+      await prisma.$transaction([
+        prisma.like.delete({ where: { id: existingLike.id } }),
+        prisma.user.updateMany({
+          where: {
+            id: targetReview.reviewerId,
+            username: { not: '游客' },
+          },
+          data: { experience: { decrement: LIKE_GAIN_EXP } },
+        }),
+      ]);
+      return res.json({ liked: false, expDelta: -LIKE_GAIN_EXP });
+    }
+
+    await prisma.$transaction([
+      prisma.like.create({
         data: {
           userId,
-          reviewId: parseInt(reviewId)
+          reviewId: id
         }
-      });
-      return res.json({ liked: true });
-    }
+      }),
+      prisma.user.updateMany({
+        where: {
+          id: targetReview.reviewerId,
+          username: { not: '游客' },
+        },
+        data: { experience: { increment: LIKE_GAIN_EXP } },
+      }),
+    ]);
+    return res.json({ liked: true, expDelta: LIKE_GAIN_EXP });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -245,6 +330,14 @@ export const createReview = async (req, res) => {
       return res.status(400).json({ message: '项目 ID 和评分均为必填项' });
     }
 
+    const targetItem = await prisma.reviewableItem.findUnique({
+      where: { id: parseInt(itemId) },
+      select: { id: true, type: true },
+    });
+    if (!targetItem) {
+      return res.status(404).json({ message: '评价项目不存在' });
+    }
+
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     // 1. 查找或创建“游客”用户 (提前获取 ID，方便后续统一逻辑)
@@ -287,6 +380,10 @@ export const createReview = async (req, res) => {
     // 6. 使用事务执行更新或新建
     const review = await prisma.$transaction(async (tx) => {
       let finalReview;
+      const needModeration = targetItem.type === 'MENTOR' && (
+        Boolean(comment && String(comment).trim()) || Boolean(normalizedImageKey)
+      );
+      const nextStatus = needModeration ? REVIEW_STATUS.PENDING : REVIEW_STATUS.APPROVED;
       
       if (isWithinUpdateWindow) {
         // 在 24 小时窗口内：无限次修改最新的一条记录
@@ -296,6 +393,7 @@ export const createReview = async (req, res) => {
             rating: parseFloat(rating),
             comment: reviewerId === req.user?.id ? comment : null, // 游客不存评论
             imageUrl: reviewerId === req.user?.id ? normalizedImageKey : null, // 游客不存图片
+            status: nextStatus,
             ip: ip // 记录当前 IP
           },
           include: {
@@ -309,6 +407,7 @@ export const createReview = async (req, res) => {
             rating: parseFloat(rating),
             comment: reviewerId === req.user?.id ? comment : null,
             imageUrl: reviewerId === req.user?.id ? normalizedImageKey : null,
+            status: nextStatus,
             reviewerId,
             itemId: parseInt(itemId),
             ip: ip
@@ -319,38 +418,145 @@ export const createReview = async (req, res) => {
         });
       }
 
-      // 7. 重新计算加权平均分
-      const allReviews = await tx.review.findMany({
-        where: { itemId: parseInt(itemId) },
-        include: {
-          reviewer: { select: { username: true } }
-        }
-      });
-
-      let weightedSum = 0;
-      let totalWeight = 0;
-      allReviews.forEach(r => {
-        const weight = r.reviewer.username === '游客' ? 0.2 : 0.8;
-        weightedSum += r.rating * weight;
-        totalWeight += weight;
-      });
-
-      const avgRating = totalWeight > 0 ? weightedSum / totalWeight : 0;
-
-      await tx.reviewableItem.update({
-        where: { id: parseInt(itemId) },
-        data: { avgRating }
-      });
+      // 7. 仅基于已通过评价计算平均分
+      await recalculateItemAvgRating(tx, parseInt(itemId));
 
       return finalReview;
     });
 
+    if (req.user?.id && !isWithinUpdateWindow) {
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { experience: { increment: EXPERIENCE_REWARD.SUBMIT_REVIEW } },
+      });
+    }
+
+    const moderationHint = review.status === REVIEW_STATUS.PENDING
+      ? { message: '评价已提交，审核通过后可公开展示' }
+      : {};
+
     res.status(201).json({
       ...review,
-      imageUrl: getSignedUrl(review.imageUrl)
+      imageUrl: getSignedUrl(review.imageUrl),
+      ...moderationHint,
     });
   } catch (error) {
     console.error('Create/Update review error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getPendingReviews = async (req, res) => {
+  try {
+    const items = await prisma.review.findMany({
+      where: { status: REVIEW_STATUS.PENDING },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reviewer: { select: { username: true } },
+        item: { select: { title: true, type: true } },
+      },
+    });
+
+    res.json(items.map((it) => ({
+      ...it,
+      imageUrl: getSignedUrl(it.imageUrl),
+    })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateReviewStatusByAdmin = async (req, res) => {
+  try {
+    const id = parseInt(req.params.reviewId, 10);
+    const status = req.body?.status;
+    if (!id || ![REVIEW_STATUS.APPROVED, REVIEW_STATUS.REJECTED].includes(status)) {
+      return res.status(400).json({ message: '无效的参数' });
+    }
+
+    const review = await prisma.review.findUnique({
+      where: { id },
+      select: { id: true, itemId: true },
+    });
+    if (!review) return res.status(404).json({ message: '评价不存在' });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.review.update({
+        where: { id },
+        data: { status },
+      });
+      await recalculateItemAvgRating(tx, review.itemId);
+    });
+
+    res.json({ message: '状态更新成功' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateOwnReview = async (req, res) => {
+  try {
+    const reviewId = parseInt(req.params.reviewId, 10);
+    const userId = req.user.id;
+    const { rating, comment, imageUrl } = req.body ?? {};
+
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: { item: { select: { type: true } } },
+    });
+    if (!review) return res.status(404).json({ message: '评价不存在' });
+    if (review.reviewerId !== userId) return res.status(403).json({ message: '无权修改该评价' });
+
+    const updateData = {};
+    if (rating !== undefined) updateData.rating = parseFloat(rating);
+    if (comment !== undefined) updateData.comment = comment;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl ? normalizeStoredFileKey(imageUrl) : null;
+
+    const needModeration = review.item.type === 'MENTOR' && (
+      Boolean((comment ?? review.comment)?.trim?.()) || Boolean(updateData.imageUrl ?? review.imageUrl)
+    );
+    updateData.status = needModeration ? REVIEW_STATUS.PENDING : REVIEW_STATUS.APPROVED;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.review.update({
+        where: { id: reviewId },
+        data: updateData,
+        include: { reviewer: { select: { username: true } } },
+      });
+      await recalculateItemAvgRating(tx, review.itemId);
+      return next;
+    });
+
+    res.json({
+      ...updated,
+      imageUrl: getSignedUrl(updated.imageUrl),
+      message: updated.status === REVIEW_STATUS.PENDING ? '修改已提交，审核通过后公开展示' : '修改成功',
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteOwnReview = async (req, res) => {
+  try {
+    const reviewId = parseInt(req.params.reviewId, 10);
+    const userId = req.user.id;
+    const target = await prisma.review.findUnique({
+      where: { id: reviewId },
+      select: { id: true, reviewerId: true, itemId: true },
+    });
+    if (!target) return res.status(404).json({ message: '评价不存在' });
+    if (target.reviewerId !== userId) return res.status(403).json({ message: '无权删除该评价' });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.like.deleteMany({ where: { reviewId } });
+      await tx.reply.deleteMany({ where: { reviewId } });
+      await tx.report.deleteMany({ where: { reviewId } });
+      await tx.review.delete({ where: { id: reviewId } });
+      await recalculateItemAvgRating(tx, target.itemId);
+    });
+    res.json({ message: '评价已删除' });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
@@ -386,12 +592,19 @@ export const deleteReviewByAdmin = async (req, res) => {
     }
 
     // 当前 schema 未配置级联删除，需手动先删关联记录，避免外键约束失败
-    await prisma.$transaction([
-      prisma.like.deleteMany({ where: { reviewId: id } }),
-      prisma.reply.deleteMany({ where: { reviewId: id } }),
-      prisma.report.deleteMany({ where: { reviewId: id } }),
-      prisma.review.delete({ where: { id } })
-    ]);
+    const review = await prisma.review.findUnique({
+      where: { id },
+      select: { id: true, itemId: true },
+    });
+    if (!review) return res.status(404).json({ message: '评价不存在' });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.like.deleteMany({ where: { reviewId: id } });
+      await tx.reply.deleteMany({ where: { reviewId: id } });
+      await tx.report.deleteMany({ where: { reviewId: id } });
+      await tx.review.delete({ where: { id } });
+      await recalculateItemAvgRating(tx, review.itemId);
+    });
     res.json({ message: '评价已删除' });
   } catch (error) {
     res.status(500).json({ error: error.message });

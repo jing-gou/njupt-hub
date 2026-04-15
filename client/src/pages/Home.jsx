@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Folder, Eye, FileText, Download, ChevronRight, Loader2, RefreshCw, Search, Github, Filter, ChevronDown, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, File, X } from 'lucide-react';
+import { Folder, Eye, FileText, Download, ChevronRight, Loader2, Trophy, Search, Github, Filter, ChevronDown, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, File, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { SiGithub } from '@icons-pack/react-simple-icons';
 
@@ -9,7 +9,7 @@ const base64EncodeUnicode = (str) => {
   }));
 };
 
-export default function Home() {
+export default function Home({ onNavigate }) {
   const { darkMode } = useTheme();
   const [resources, setResources] = useState({});
   const [loading, setLoading] = useState(true);
@@ -423,8 +423,11 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <button onClick={fetchResources} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
-                  <RefreshCw size={18} /> 刷新
+                <button
+                  onClick={() => onNavigate?.('leaderboard')}
+                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}
+                >
+                  <Trophy size={18} /> 排行榜
                 </button>
                 <a
                   href="https://github.com/jing-gou/njupt-notes"

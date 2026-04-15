@@ -4,10 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import StarRating from '../components/StarRating';
 import toast from 'react-hot-toast';
 import { compressImageForUpload } from '../utils/imageCompression';
+import { getAvatarFallbackUrl } from '../utils/avatar';
 import { 
   ChevronLeft, 
   Send, 
-  User, 
   Calendar, 
   Loader2, 
   ThumbsUp, 
@@ -15,10 +15,12 @@ import {
   AlertTriangle, 
   MapPin, 
   GraduationCap,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
-export default function ReviewDetailPage({ itemId, onBack }) {
+export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
   const { darkMode } = useTheme();
   const { token, user, isAuthed } = useAuth();
   const [item, setItem] = useState(null);
@@ -38,6 +40,11 @@ export default function ReviewDetailPage({ itemId, onBack }) {
   const [reportingId, setReportingId] = useState(null);
   const [reportReason, setReportReason] = useState('');
   const [reportingLoading, setReportingLoading] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editRating, setEditRating] = useState(0);
+  const [editComment, setEditComment] = useState('');
+  const [editImageUrl, setEditImageUrl] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const fetchDetail = async () => {
     try {
@@ -127,20 +134,90 @@ export default function ReviewDetailPage({ itemId, onBack }) {
           imageUrl: isAuthed ? imageUrl : '' // 游客不发送图片
         })
       });
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.message || '提交失败');
       }
-
       setComment('');
       setImageUrl('');
       setUserRating(0);
+      toast.success(data?.message || '发布成功');
       fetchDetail(); 
     } catch (err) {
       setError(err.message);
     } finally {
       setLoadingSubmitting(false);
+    }
+  };
+
+  const beginEditReview = (review) => {
+    setEditingReviewId(review.id);
+    setEditRating(Number(review.rating || 0));
+    setEditComment(review.comment || '');
+    setEditImageUrl(review.imageUrl || '');
+  };
+
+  const cancelEditReview = () => {
+    setEditingReviewId(null);
+    setEditRating(0);
+    setEditComment('');
+    setEditImageUrl('');
+  };
+
+  const handleUpdateReview = async () => {
+    if (!editingReviewId) return;
+    if (editRating <= 0) return toast.error('评分必须大于 0');
+    setEditSubmitting(true);
+    try {
+      const res = await fetch(`/api/reviews/${editingReviewId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          rating: editRating,
+          comment: editComment,
+          imageUrl: editImageUrl,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || '修改失败');
+      toast.success(data?.message || '修改成功');
+      cancelEditReview();
+      fetchDetail();
+    } catch (err) {
+      toast.error(err.message || '修改失败');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteReview = async (review) => {
+    if (!isAuthed || !token) return toast.error('请先登录');
+    const canAdminDelete = user?.role === 'ADMIN' || user?.role === 'DEV';
+    const isOwner = user?.id === review.reviewerId;
+    if (!isOwner && !canAdminDelete) return toast.error('无权删除');
+
+    const confirmed = window.confirm('确认删除该评价吗？此操作不可撤销。');
+    if (!confirmed) return;
+
+    try {
+      const endpoint = canAdminDelete && !isOwner
+        ? `/api/reviews/admin/reviews/${review.id}`
+        : `/api/reviews/${review.id}`;
+      const res = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || '删除失败');
+      toast.success('删除成功');
+      if (editingReviewId === review.id) cancelEditReview();
+      fetchDetail();
+    } catch (err) {
+      toast.error(err.message || '删除失败');
     }
   };
 
@@ -463,9 +540,15 @@ export default function ReviewDetailPage({ itemId, onBack }) {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
-                    <User size={16} className={darkMode ? 'text-slate-300' : 'text-slate-500'} />
-                  </div>
+                  <img
+                    src={review.reviewer?.avatarUrl || getAvatarFallbackUrl(review.reviewer?.username, 40)}
+                    alt={review.reviewer?.username || '用户'}
+                    className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = getAvatarFallbackUrl(review.reviewer?.username, 40);
+                    }}
+                  />
                   <div>
                     <div className={`font-bold ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
                       {review.reviewer?.username}
@@ -476,11 +559,71 @@ export default function ReviewDetailPage({ itemId, onBack }) {
                     </div>
                   </div>
                 </div>
-                <StarRating rating={review.rating} size={14} />
+                <div className="flex items-center gap-2">
+                  {review.status === 'PENDING' && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      darkMode ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      待审核
+                    </span>
+                  )}
+                  {review.status === 'REJECTED' && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      darkMode ? 'bg-red-500/20 text-red-300' : 'bg-red-100 text-red-700'
+                    }`}>
+                      已驳回
+                    </span>
+                  )}
+                  <StarRating rating={review.rating} size={14} />
+                </div>
               </div>
-              <p className={`leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                {review.comment}
-              </p>
+              {editingReviewId === review.id ? (
+                <div className="space-y-3">
+                  <StarRating
+                    rating={editRating}
+                    onRatingChange={setEditRating}
+                    interactive={true}
+                    size={22}
+                  />
+                  <textarea
+                    value={editComment}
+                    onChange={(e) => setEditComment(e.target.value)}
+                    className={`w-full p-3 rounded-xl border outline-none ${
+                      darkMode ? 'bg-slate-900/50 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                    }`}
+                    rows={3}
+                  />
+                  <input
+                    value={editImageUrl}
+                    onChange={(e) => setEditImageUrl(e.target.value)}
+                    placeholder="图片 URL（可选）"
+                    className={`w-full p-2 rounded-xl text-xs border outline-none ${
+                      darkMode ? 'bg-slate-900/30 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleUpdateReview}
+                      disabled={editSubmitting}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      保存修改
+                    </button>
+                    <button
+                      onClick={cancelEditReview}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className={`leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  {review.comment}
+                </p>
+              )}
               {review.imageUrl && (
                 <div className={`w-32 h-32 rounded-xl overflow-hidden border ${
                   darkMode ? 'border-slate-800' : 'border-slate-100'
@@ -528,6 +671,26 @@ export default function ReviewDetailPage({ itemId, onBack }) {
                   <AlertTriangle size={14} />
                   <span>举报</span>
                 </button>
+                {isAuthed && user?.id === review.reviewerId && (
+                  <button
+                    onClick={() => beginEditReview(review)}
+                    className={`flex items-center gap-1.5 text-xs font-bold transition-all ${
+                      darkMode ? 'text-slate-500 hover:text-blue-300' : 'text-slate-400 hover:text-blue-600'
+                    }`}
+                  >
+                    <Pencil size={14} />
+                    <span>编辑</span>
+                  </button>
+                )}
+                {isAuthed && (user?.id === review.reviewerId || user?.role === 'ADMIN' || user?.role === 'DEV') && (
+                  <button
+                    onClick={() => handleDeleteReview(review)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-600 transition-all"
+                  >
+                    <Trash2 size={14} />
+                    <span>删除</span>
+                  </button>
+                )}
               </div>
 
               {/* 举报输入框 */}

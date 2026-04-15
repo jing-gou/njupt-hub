@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CircleUserRound, LogOut, RefreshCw, Mail, ShieldCheck, ChevronRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { CircleUserRound, LogOut, RefreshCw, Mail, ShieldCheck, ArrowLeft, HelpCircle, UploadCloud, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
+import { getAvatarFallbackUrl } from '../utils/avatar';
 
 export default function Profile({ onGoLogin }) {
   const { darkMode } = useTheme();
-  const { user, token, logout, isAuthed } = useAuth();
+  const { user, token, logout, isAuthed, updateProfile, changePassword, uploadAvatar, refreshMe } = useAuth();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,6 +15,14 @@ export default function Profile({ onGoLogin }) {
   const [status, setStatus] = useState('ALL');
   const [receivedLikes, setReceivedLikes] = useState(0);
   const [activeSubPage, setActiveSubPage] = useState('home'); // 'home' | 'account'
+  const [newUsername, setNewUsername] = useState('');
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showExpRuleTip, setShowExpRuleTip] = useState(false);
+  const [expRefreshing, setExpRefreshing] = useState(false);
 
   const statusOptions = useMemo(() => ['ALL', 'PENDING', 'APPROVED', 'REJECTED'], []);
   const statusLabels = {
@@ -67,6 +77,71 @@ export default function Profile({ onGoLogin }) {
     fetchStats();
   }, [user?.id, status]);
 
+  useEffect(() => {
+    setNewUsername(user?.username || '');
+  }, [user?.username]);
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    const username = newUsername.trim();
+    if (!username) return toast.error('用户名不能为空');
+    setProfileSubmitting(true);
+    try {
+      await updateProfile({ username });
+      toast.success('用户名已更新');
+    } catch (err) {
+      toast.error(err.message || '更新失败');
+    } finally {
+      setProfileSubmitting(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) return toast.error('请填写完整密码信息');
+    setPasswordSubmitting(true);
+    try {
+      await changePassword({ currentPassword, newPassword });
+      setCurrentPassword('');
+      setNewPassword('');
+      toast.success('密码修改成功');
+    } catch (err) {
+      toast.error(err.message || '修改失败');
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) return toast.error('仅支持图片文件');
+    if (file.size > 5 * 1024 * 1024) return toast.error('头像不能超过 5MB');
+    setAvatarUploading(true);
+    try {
+      await uploadAvatar(file);
+      toast.success('头像更新成功');
+    } catch (err) {
+      toast.error(err.message || '头像上传失败');
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRefreshExp = async () => {
+    if (!token) return;
+    setExpRefreshing(true);
+    try {
+      await refreshMe();
+      toast.success('经验已刷新');
+    } catch (err) {
+      toast.error(err.message || '刷新失败');
+    } finally {
+      setExpRefreshing(false);
+    }
+  };
+
   if (!isAuthed) {
     return (
       <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
@@ -100,25 +175,14 @@ export default function Profile({ onGoLogin }) {
     );
   }
 
-  const profileCards = [
-    {
-      key: 'username',
-      label: '用户名',
-      value: user?.username || '-',
-      tone: darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'
-    },
-    {
-      key: 'likes',
-      label: '累计获赞',
-      value: receivedLikes,
-      tone: darkMode ? 'border-blue-500/30 bg-blue-500/10' : 'border-blue-100 bg-blue-100',
-      valueClass: darkMode ? 'text-blue-400' : 'text-blue-600',
-      labelClass: darkMode ? 'text-blue-400' : 'text-blue-600'
-    }
-  ];
-
   const roleLabel = user?.role || '-';
   const emailLabel = user?.email || '-';
+  const level = Number(user?.level || 1);
+  const experience = Number(user?.experience || 0);
+  const levelProgress = Number(user?.levelProgress || 0);
+  const levelProgressTotal = Number(user?.levelProgressTotal || 100);
+  const nextLevelExp = Number(user?.nextLevelExp || 100);
+  const progressPercent = Math.min(100, Math.max(0, (levelProgress / levelProgressTotal) * 100));
 
   return (
     <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
@@ -129,13 +193,30 @@ export default function Profile({ onGoLogin }) {
             : 'md:bg-slate-100 md:border-slate-100 md:shadow-slate-200/50'
         }`}
       >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${darkMode ? 'bg-slate-700 text-white' : 'bg-slate-900 text-white'}`}>
-              <CircleUserRound size={24} />
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <img
+                src={user?.avatarUrl || getAvatarFallbackUrl(user?.username, 80)}
+                alt={user?.username || '用户'}
+                className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-blue-400/40"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getAvatarFallbackUrl(user?.username, 80);
+                }}
+              />
+              <label className={`absolute -bottom-1 -right-1 p-1.5 rounded-full cursor-pointer ${
+                darkMode ? 'bg-slate-700 text-slate-200' : 'bg-white text-slate-600 shadow'
+              }`}>
+                {avatarUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={avatarUploading} />
+              </label>
             </div>
             <div>
               <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>个人中心</h2>
+              <p className={`text-xs md:text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                @{user?.username}
+              </p>
             </div>
           </div>
 
@@ -162,34 +243,75 @@ export default function Profile({ onGoLogin }) {
         </div>
 
         {activeSubPage === 'home' ? (
-          <>
-            <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-              {profileCards.map((card) => (
-                <div key={card.key} className={`rounded-2xl p-4 border transition-all ${card.tone}`}>
-                  <div className={`text-xs font-medium ${card.labelClass || (darkMode ? 'text-slate-500' : 'text-slate-500')}`}>{card.label}</div>
-                  <div className={`font-bold text-lg ${card.valueClass || ''}`}>{card.value}</div>
+          <div className="space-y-4">
+            <div className={`rounded-2xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-white'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className={`text-xs mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>当前等级</div>
+                  <div className={`text-2xl font-black ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>Lv.{level}</div>
+                  <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{experience} EXP</div>
                 </div>
-              ))}
-              <button
-                onClick={() => setActiveSubPage('account')}
-                className={`rounded-2xl p-4 border text-left transition-all group ${
-                  darkMode
-                    ? 'border-slate-700 bg-slate-900/30 hover:bg-slate-800/70'
-                    : 'border-slate-200 bg-white/70 hover:bg-white'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>账号详情</div>
-                    <div className={`font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>查看邮箱与角色</div>
-                  </div>
-                  <ChevronRight size={18} className={`transition-transform group-hover:translate-x-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleRefreshExp}
+                    disabled={expRefreshing}
+                    className={`p-1.5 rounded-full transition-colors ${
+                      darkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-100'
+                    } ${expRefreshing ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    aria-label="刷新经验"
+                    title="刷新经验"
+                  >
+                    <RefreshCw size={16} className={expRefreshing ? 'animate-spin' : ''} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowExpRuleTip((v) => !v)}
+                    onMouseEnter={() => setShowExpRuleTip(true)}
+                    onMouseLeave={() => setShowExpRuleTip(false)}
+                    className={`relative p-1.5 rounded-full ${
+                      darkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                    aria-label="查看升级规则"
+                    title="查看升级规则"
+                  >
+                    <HelpCircle size={16} />
+                    {showExpRuleTip && (
+                      <div className={`absolute right-0 top-8 w-56 text-left text-xs p-3 rounded-xl border z-20 ${
+                        darkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700 shadow-lg'
+                      }`}>
+                        <p className="font-semibold mb-1">等级升级机制</p>
+                        <p>每 100 EXP 升 1 级。</p>
+                        <p>上传资料：+10 EXP/文件（通过审核后结算）。</p>
+                        <p>新建评分：+5 EXP/次（游客不计入）。</p>
+                        <p>获赞：+2 EXP（取消赞会扣回）。</p>
+                      </div>
+                    )}
+                  </button>
                 </div>
-              </button>
+              </div>
+              <div className={`mt-3 h-2 rounded-full overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: `${progressPercent}%` }} />
+              </div>
+              <div className={`mt-1 text-[11px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                距离下一级还需 {Math.max(0, nextLevelExp - experience)} EXP
+              </div>
             </div>
 
-           
-          </>
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+              <button
+                onClick={() => setActiveSubPage('account')}
+                className={`rounded-2xl p-4 border text-left transition-all ${darkMode ? 'border-slate-700 bg-slate-900/30 hover:bg-slate-900/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
+              >
+                <div className="text-xs text-slate-500">账号设置</div>
+                <div className="font-bold text-lg">修改用户名、密码</div>
+              </button>
+              <div className={`rounded-2xl p-4 border transition-all ${darkMode ? 'border-blue-500/30 bg-blue-500/10' : 'border-blue-100 bg-blue-100'}`}>
+                <div className={`text-xs font-medium ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>累计获赞</div>
+                <div className={`font-bold text-lg ${darkMode ? 'text-blue-200' : 'text-blue-700'}`}>{receivedLikes}</div>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className={`rounded-2xl border p-4 md:p-5 space-y-4 ${
             darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-white/70'
@@ -215,6 +337,56 @@ export default function Profile({ onGoLogin }) {
                 </div>
               </div>
             </div>
+            <form onSubmit={handleUpdateProfile} className="space-y-3">
+              <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>修改用户名</div>
+              <div className="flex flex-col md:flex-row gap-2">
+                <input
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  placeholder="请输入新用户名"
+                  className={`flex-1 px-3 py-2 rounded-xl text-sm border outline-none ${
+                    darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                />
+                <button
+                  type="submit"
+                  disabled={profileSubmitting}
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  保存用户名
+                </button>
+              </div>
+            </form>
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>修改密码</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="当前密码"
+                  className={`px-3 py-2 rounded-xl text-sm border outline-none ${
+                    darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="新密码（至少8位且含字母数字）"
+                  className={`px-3 py-2 rounded-xl text-sm border outline-none ${
+                    darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={passwordSubmitting}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                保存新密码
+              </button>
+            </form>
           </div>
         )}
 

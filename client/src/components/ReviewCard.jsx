@@ -1,6 +1,7 @@
 import React from 'react';
 import StarRating from './StarRating';
 import { MessageSquare, MapPin, School } from 'lucide-react';
+import { getAvatarFallbackUrl } from '../utils/avatar';
 
 export default function ReviewCard({ item, onClick, darkMode }) {
   const featuredReview = item.reviews?.[0];
@@ -78,8 +79,19 @@ export default function ReviewCard({ item, onClick, darkMode }) {
           </div>
           <p className={`text-xs italic line-clamp-2 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             "{featuredReview.comment}"
-            <span className="ml-1 opacity-60">— {featuredReview.reviewer?.username}</span>
           </p>
+          <div className="mt-2 flex items-center gap-2">
+            <img
+              src={featuredReview.reviewer?.avatarUrl || getAvatarFallbackUrl(featuredReview.reviewer?.username, 24)}
+              alt={featuredReview.reviewer?.username || '用户'}
+              className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = getAvatarFallbackUrl(featuredReview.reviewer?.username, 24);
+              }}
+            />
+            <span className="text-[11px] opacity-70">— {featuredReview.reviewer?.username}</span>
+          </div>
         </div>
       )}
     </div>

@@ -12,6 +12,8 @@ model User {
   password  String
   email     String     @unique
   role      UserRole   @default(USER)
+  experience Int       @default(0)
+  avatarKey String?
   createdAt DateTime   @default(now())
   resources Resource[]
   reviews   Review[]
@@ -53,6 +55,7 @@ model Review {
   reviewerId Int
   updatedAt  DateTime       @updatedAt
   imageUrl   String?
+  status     ReviewStatus   @default(APPROVED)
   itemId     Int
   item       ReviewableItem @relation(fields: [itemId], references: [id])
   reviewer   User           @relation(fields: [reviewerId], references: [id])
@@ -62,6 +65,7 @@ model Review {
 
   @@index([itemId], map: "Review_itemId_fkey")
   @@index([reviewerId], map: "Review_reviewerId_fkey")
+  @@index([status])
 }
 
 model Like {
@@ -132,4 +136,10 @@ enum Project {
   MENTOR
   CANTEEN
   TAKEOUT
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
