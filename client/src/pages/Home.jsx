@@ -40,6 +40,8 @@ export default function Home() {
     }
   };
 
+  const normalizeRelativePath = (value) => String(value || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+
   const fetchResources = async () => {
     setLoading(true);
     try {
@@ -61,8 +63,11 @@ export default function Home() {
       const root = { files: [], folders: {} };
       
       for (const r of items) {
-        const coursePath = r.course || '未分类';
-        const pathParts = coursePath.split('/').filter(Boolean);
+        const coursePath = normalizeRelativePath(r.course || '未分类');
+        const originalPath = normalizeRelativePath(r.fileName || extractFileNameFromUrl(r.fileUrl));
+        const subFolders = originalPath.split('/').filter(Boolean).slice(0, -1);
+        const originalFileName = originalPath.split('/').filter(Boolean).pop() || extractFileNameFromUrl(r.fileUrl);
+        const pathParts = [...coursePath.split('/').filter(Boolean), ...subFolders];
         
         let current = root;
         for (const part of pathParts) {
@@ -76,7 +81,7 @@ export default function Home() {
           id: r.id,
           sha: String(r.id),
           name: r.title,
-          fileName: extractFileNameFromUrl(r.fileUrl),
+          fileName: originalFileName,
           path: r.fileUrl,
           size: r.fileSize ? `${(r.fileSize / 1024 / 1024).toFixed(2)} MB` : '未知',
           updatedAt: new Date(r.updatedAt).toLocaleDateString(),
@@ -183,7 +188,11 @@ export default function Home() {
     return (
       <div className={`transition-all duration-300 ${
         level === 0 
-          ? `mb-4 md:rounded-xl md:border md:backdrop-blur-md ${darkMode ? 'md:border-slate-700 md:bg-slate-900/40 md:shadow-lg md:shadow-black/20' : 'md:border-slate-200 md:bg-white/70 md:shadow-md md:hover:shadow-lg'}` 
+          ? `mb-4 rounded-xl border backdrop-blur-md ${
+              darkMode
+                ? 'border-slate-800 bg-slate-900/40 shadow-lg shadow-black/20'
+                : 'border-slate-200 bg-white/70 shadow-md hover:shadow-lg'
+            }` 
           : (darkMode ? 'bg-slate-800/10' : 'bg-slate-50/50')
       } ${isLastOfParent ? 'md:rounded-b-xl' : ''}`}>
         <button
@@ -364,7 +373,7 @@ export default function Home() {
         onClick={() => setIsSearching(false)}
       />
 
-      <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
+        <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
         {/* 主内容区 */}
         <div className={`relative ${isSearching ? 'z-[70]' : 'z-10'}`} onClick={() => isSearching && setIsSearching(false)}>
           <div className="relative pb-2">
@@ -372,7 +381,7 @@ export default function Home() {
               <div className={`absolute top-0 left-1/4 w-96 h-96 rounded-full blur-[100px] ${darkMode ? 'bg-blue-500/10' : 'bg-blue-400/20'}`}></div>
             </div>
 
-            <div className="relative max-w-4xl mx-auto px-4 pt-12 pb-4 text-center">
+            <div className={`relative max-w-4xl mx-auto px-4 pt-12 pb-4 text-center ${showFilter ? 'z-[100]' : ''}`}>
               <h1 className={`text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r transition-all duration-900 hover:scale-105 active:scale-95 ${darkMode ? 'from-blue-400 to-pink-400' : 'from-blue-600 to-pink-600'} ${isSearching ? 'opacity-10 blur-md scale-90' : 'opacity-100'}`}>
                 NJUPT Hub
               </h1>
@@ -393,12 +402,12 @@ export default function Home() {
               </div>
 
               <div className={`flex flex-wrap justify-center gap-3 mb-4 transition-all duration-500 relative z-20 ${isSearching ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <div className="relative">
+                <div className="relative z-[90]">
                   <button onClick={() => setShowFilter(!showFilter)} className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
                     <Filter size={18} /> 筛选
                   </button>
                   {showFilter && (
-                    <div className={`absolute top-full mt-2 left-0 w-64 p-4 rounded-xl shadow-2xl border z-50 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                    <div className={`absolute top-full mt-2 left-0 w-64 p-4 rounded-xl shadow-2xl border z-[90] ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
                       {categories.map(cat => (
                         <button key={cat} onClick={() => setSelectedCategory(cat)} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${selectedCategory === cat ? 'bg-blue-500/20 text-blue-400' : ''}`}>{cat}</button>
                       ))}
@@ -423,7 +432,7 @@ export default function Home() {
         </div>
 
         {/* 目录树同步上浮 */}
-        <div className={`max-w-4xl mx-auto px-2 md:px-4 pb-24 transition-all duration-500 ${isSearching ? 'relative z-[70] transform -translate-y-12 md:-translate-y-24' : 'relative z-10'}`}>
+        <div className={`max-w-4xl mx-auto px-2 md:px-4 pb-24 transition-all duration-500 ${isSearching ? 'relative z-[70] transform -translate-y-12 md:-translate-y-24' : showFilter ? 'relative z-0' : 'relative z-10'}`}>
           {Object.keys(filteredResources).length === 0 ? (
             <div className="text-center py-20 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 relative z-0">
               <p>没有找到匹配的资料</p>

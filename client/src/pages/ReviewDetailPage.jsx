@@ -3,6 +3,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import StarRating from '../components/StarRating';
 import toast from 'react-hot-toast';
+import { compressImageForUpload } from '../utils/imageCompression';
 import { 
   ChevronLeft, 
   Send, 
@@ -61,23 +62,40 @@ export default function ReviewDetailPage({ itemId, onBack }) {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (!isAuthed || !token) {
+      setError('请先登录后再上传图片');
+      return;
+    }
+    if (!file.type?.startsWith('image/')) {
+      setError('仅支持上传图片文件');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('图片大小不能超过 10MB');
+      return;
+    }
 
     setUploading(true);
     setError('');
-    const formData = new FormData();
-    formData.append('image', file);
 
     try {
+      const compressedFile = await compressImageForUpload(file);
+      const formData = new FormData();
+      formData.append('image', compressedFile);
       const res = await fetch('/api/reviews/upload-image', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await res.json()
+        : { message: await res.text() };
       if (!res.ok) {
-        throw new Error(data.message || data.error || '上传失败');
+        throw new Error(data.message || data.error || `上传失败 (${res.status})`);
       }
       if (data.url) setImageUrl(data.url);
+      else throw new Error('上传成功但未返回图片链接');
     } catch (err) {
       console.error('Upload failed:', err);
       setError(err.message || '图片上传失败');
@@ -309,7 +327,9 @@ export default function ReviewDetailPage({ itemId, onBack }) {
                 </span>
               )}
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 inline-block border border-slate-100 dark:border-slate-800">
+            <div className={`p-4 rounded-2xl inline-block border ${
+              darkMode ? 'bg-slate-900/30 border-slate-800' : 'bg-slate-50/50 border-slate-100'
+            }`}>
               <StarRating
                 rating={userRating}
                 onRatingChange={setUserRating}
@@ -367,7 +387,9 @@ export default function ReviewDetailPage({ itemId, onBack }) {
                     </div>
                   </div>
                   {imageUrl && (
-                    <div className="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                    <div className={`w-20 h-20 rounded-xl overflow-hidden border ${
+                      darkMode ? 'border-slate-700' : 'border-slate-200'
+                    }`}>
                       <img src={imageUrl} className="w-full h-full object-cover" 
                         onError={(e) => {
                           e.target.onerror = null;
@@ -460,7 +482,9 @@ export default function ReviewDetailPage({ itemId, onBack }) {
                 {review.comment}
               </p>
               {review.imageUrl && (
-                <div className="w-32 h-32 rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800">
+                <div className={`w-32 h-32 rounded-xl overflow-hidden border ${
+                  darkMode ? 'border-slate-800' : 'border-slate-100'
+                }`}>
                   <img src={review.imageUrl} alt="Review" className="w-full h-full object-cover" 
                     crossOrigin="anonymous"
                     onError={(e) => {

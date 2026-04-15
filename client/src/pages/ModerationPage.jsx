@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { 
   ShieldCheck, 
   FileText, 
-  MessageSquare, 
   CheckCircle, 
   XCircle, 
   Trash2, 
@@ -22,6 +21,8 @@ export default function ModerationPage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+  const [selectedResourceIds, setSelectedResourceIds] = useState([]);
+  const [selectedReportIds, setSelectedReportIds] = useState([]);
 
   // 新增状态：控制确认弹窗
   const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, reviewId: null });
@@ -58,6 +59,19 @@ export default function ModerationPage() {
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  useEffect(() => {
+    setSelectedResourceIds([]);
+    setSelectedReportIds([]);
+  }, [activeTab]);
+
+  useEffect(() => {
+    setSelectedResourceIds((prev) => prev.filter((id) => resources.some((r) => r.id === id)));
+  }, [resources]);
+
+  useEffect(() => {
+    setSelectedReportIds((prev) => prev.filter((id) => reports.some((r) => r.id === id)));
+  }, [reports]);
 
   const handleResourceAction = async (id, status) => {
     setActionLoading(id);
@@ -103,8 +117,8 @@ export default function ModerationPage() {
   const handleDismissReport = async (reportId) => {
     setActionLoading(`report-${reportId}`);
     try {
-      const res = await fetch(`/api/reviews/admin/reports/${reportId}/dismiss`, {
-        method: 'POST',
+      const res = await fetch(`/api/reviews/admin/reports/${reportId}`, {
+        method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -113,6 +127,113 @@ export default function ModerationPage() {
       }
     } catch (err) {
       toast.error('忽略失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const toggleResourceSelection = (id) => {
+    setSelectedResourceIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+
+  const toggleReportSelection = (id) => {
+    setSelectedReportIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllResources = () => {
+    if (selectedResourceIds.length === resources.length) {
+      setSelectedResourceIds([]);
+    } else {
+      setSelectedResourceIds(resources.map((r) => r.id));
+    }
+  };
+
+  const toggleSelectAllReports = () => {
+    if (selectedReportIds.length === reports.length) {
+      setSelectedReportIds([]);
+    } else {
+      setSelectedReportIds(reports.map((r) => r.id));
+    }
+  };
+
+  const handleBatchResourceAction = async (status) => {
+    if (selectedResourceIds.length === 0) return;
+    setActionLoading(`bulk-resource-${status}`);
+    try {
+      const tasks = selectedResourceIds.map((id) =>
+        fetch(`/api/resources/${id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status }),
+        })
+      );
+      const results = await Promise.all(tasks);
+      const successCount = results.filter((r) => r.ok).length;
+      setResources((prev) => prev.filter((r) => !selectedResourceIds.includes(r.id)));
+      setSelectedResourceIds([]);
+      toast.success(`批量操作完成：成功 ${successCount} / ${results.length}`);
+    } catch (err) {
+      toast.error('批量操作失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBatchDismissReports = async () => {
+    if (selectedReportIds.length === 0) return;
+    setActionLoading('bulk-report-dismiss');
+    try {
+      const tasks = selectedReportIds.map((id) =>
+        fetch(`/api/reviews/admin/reports/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+      );
+      const results = await Promise.all(tasks);
+      const successIds = selectedReportIds.filter((_, idx) => results[idx].ok);
+      setReports((prev) => prev.filter((r) => !successIds.includes(r.id)));
+      setSelectedReportIds([]);
+      toast.success(`批量忽略完成：成功 ${successIds.length} / ${results.length}`);
+    } catch (err) {
+      toast.error('批量忽略失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBatchDeleteReportedReviews = async () => {
+    if (selectedReportIds.length === 0) return;
+    const targetReports = reports.filter((r) => selectedReportIds.includes(r.id));
+    const reviewIds = Array.from(new Set(targetReports.map((r) => r.reviewId).filter(Boolean)));
+    if (reviewIds.length === 0) {
+      toast.error('未找到可删除的评价');
+      return;
+    }
+    const confirmed = window.confirm(`确认删除 ${reviewIds.length} 条被举报评价吗？该操作不可撤销。`);
+    if (!confirmed) return;
+
+    setActionLoading('bulk-report-delete-review');
+    try {
+      const tasks = reviewIds.map((reviewId) =>
+        fetch(`/api/reviews/admin/reviews/${reviewId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+      );
+      const results = await Promise.all(tasks);
+      const successReviewIds = reviewIds.filter((_, idx) => results[idx].ok);
+      setReports((prev) => prev.filter((r) => !successReviewIds.includes(r.reviewId)));
+      setSelectedReportIds([]);
+      toast.success(`批量删除完成：成功 ${successReviewIds.length} / ${reviewIds.length}`);
+    } catch (err) {
+      toast.error('批量删除失败');
     } finally {
       setActionLoading(null);
     }
@@ -164,6 +285,39 @@ export default function ModerationPage() {
               <div className="text-center py-20 text-slate-500">暂无待审核资料</div>
             ) : (
               <div className="grid gap-4">
+                <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+                  darkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={toggleSelectAllResources}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        darkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {selectedResourceIds.length === resources.length ? '取消全选' : '全选'}
+                    </button>
+                    <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      已选 {selectedResourceIds.length} / {resources.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleBatchResourceAction('APPROVED')}
+                      disabled={selectedResourceIds.length === 0 || actionLoading === 'bulk-resource-APPROVED'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      批量通过
+                    </button>
+                    <button
+                      onClick={() => handleBatchResourceAction('REJECTED')}
+                      disabled={selectedResourceIds.length === 0 || actionLoading === 'bulk-resource-REJECTED'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      批量拒绝
+                    </button>
+                  </div>
+                </div>
                 {resources.map(res => (
                   <div 
                     key={res.id}
@@ -173,6 +327,12 @@ export default function ModerationPage() {
                   >
                     <div className="flex-1 space-y-2 w-full">
                       <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedResourceIds.includes(res.id)}
+                          onChange={() => toggleResourceSelection(res.id)}
+                          className="w-4 h-4 accent-blue-500"
+                        />
                         <FileText size={18} className="text-blue-500" />
                         <h3 className={`font-bold text-lg truncate ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{res.title}</h3>
                       </div>
@@ -220,6 +380,41 @@ export default function ModerationPage() {
               <div className="text-center py-20 text-slate-500">暂无待处理举报</div>
             ) : (
               <div className="grid gap-4">
+                <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+                  darkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={toggleSelectAllReports}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        darkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {selectedReportIds.length === reports.length ? '取消全选' : '全选'}
+                    </button>
+                    <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      已选 {selectedReportIds.length} / {reports.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleBatchDismissReports}
+                      disabled={selectedReportIds.length === 0 || actionLoading === 'bulk-report-dismiss'}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      批量忽略
+                    </button>
+                    <button
+                      onClick={handleBatchDeleteReportedReviews}
+                      disabled={selectedReportIds.length === 0 || actionLoading === 'bulk-report-delete-review'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      批量删评
+                    </button>
+                  </div>
+                </div>
                 {reports.map(report => (
                   <div 
                     key={report.id}
@@ -229,6 +424,12 @@ export default function ModerationPage() {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2 text-amber-500">
+                        <input
+                          type="checkbox"
+                          checked={selectedReportIds.includes(report.id)}
+                          onChange={() => toggleReportSelection(report.id)}
+                          className="w-4 h-4 accent-blue-500"
+                        />
                         <AlertTriangle size={18} />
                         <span className="font-bold text-sm">被举报原因: {report.reason}</span>
                       </div>

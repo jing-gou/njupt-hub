@@ -5,6 +5,7 @@ import ReviewDetailPage from './ReviewDetailPage';
 import { Users, Utensils, ShoppingBag, Loader2, Plus, X, Image as ImageIcon, Search, ChevronDown, SlidersHorizontal, ArrowUpDown, Flame, MapPin, School, Layers, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { compressImageForUpload } from '../utils/imageCompression';
 
 const TABS = [
   { id: 'CANTEEN', label: '食堂档口', icon: Utensils },
@@ -160,22 +161,39 @@ export default function ReviewPage() {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (!isAuthed || !token) {
+      toast.error('请先登录后再上传图片');
+      return;
+    }
+    if (!file.type?.startsWith('image/')) {
+      toast.error('仅支持上传图片文件');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('图片大小不能超过 10MB');
+      return;
+    }
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append('image', file);
 
     try {
+      const compressedFile = await compressImageForUpload(file);
+      const formData = new FormData();
+      formData.append('image', compressedFile);
       const res = await fetch('/api/reviews/upload-image', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await res.json()
+        : { message: await res.text() };
       if (!res.ok) {
-        throw new Error(data.message || data.error || '上传失败');
+        throw new Error(data.message || data.error || `上传失败 (${res.status})`);
       }
       if (data.url) setNewImageUrl(data.url);
+      else throw new Error('上传成功但未返回图片链接');
     } catch (err) {
       console.error('Upload failed:', err);
       toast.error(err.message || '图片上传失败');
@@ -297,24 +315,41 @@ export default function ReviewPage() {
                   </button>
                 );
               })}
+              <button
+                onClick={() => setShowFilterPanel(v => !v)}
+                className={`md:hidden flex-1 flex items-center justify-center py-2 px-3 rounded-xl transition-all transform hover:scale-105 active:scale-95 ${
+                  showFilterPanel
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : `${
+                        darkMode
+                          ? 'text-slate-300 hover:bg-slate-700/50'
+                          : 'text-slate-500 hover:bg-slate-50'
+                      }`
+                }`}
+                aria-label="筛选和排序"
+                title="筛选和排序"
+              >
+                <SlidersHorizontal size={16} />
+              </button>
             </div>
           </div>
         </div>
 
         {/* Filter / Sort Button */}
-        <div className={`relative transition-all duration-500 ease-in-out ${
+        <div className={`hidden md:block relative transition-all duration-500 ease-in-out ${
           isSearching ? 'blur-sm opacity-50 pointer-events-none' : 'opacity-100'
         } ${showFilterPanel ? 'z-[80]' : 'z-10'}`}>
           <button
             onClick={() => setShowFilterPanel(v => !v)}
-            className={`w-full md:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border backdrop-blur-lg shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+            aria-label="筛选和排序"
+            title="筛选和排序"
+            className={`w-11 h-11 inline-flex items-center justify-center rounded-2xl border backdrop-blur-lg shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
               darkMode
                 ? 'bg-slate-800/90 border-slate-700 text-slate-200 hover:bg-slate-800'
                 : 'bg-white/90 border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
             <SlidersHorizontal size={18} />
-            <span className="text-sm font-semibold">筛选 / 排序</span>
           </button>
 
           {showFilterPanel && (
@@ -455,6 +490,142 @@ export default function ReviewPage() {
             </div>
           )}
         </div>
+
+        {/* Mobile Filter Panel */}
+        {showFilterPanel && (
+          <div className={`md:hidden fixed inset-x-4 top-28 z-[90] rounded-2xl border shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden backdrop-blur-xl ${
+            darkMode ? 'bg-slate-800/95 border-slate-700 shadow-blue-900/20' : 'bg-slate-100/95 border-slate-200 shadow-blue-500/10'
+          }`}>
+            {/* Header */}
+            <div className={`px-4 py-3 border-b ${darkMode ? 'border-slate-700/60' : 'border-slate-200/60'}`}>
+              <div className="flex items-center justify-between gap-4">
+                <div className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>筛选与排序</div>
+                <button
+                  onClick={() => setShowFilterPanel(false)}
+                  className={`p-1.5 rounded-full transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}
+                  aria-label="关闭"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-4 py-4 space-y-5 max-h-[60vh] overflow-auto">
+              {(activeTab === 'CANTEEN' || activeTab === 'MENTOR') && (
+                <div className="space-y-3">
+                  {activeTab === 'CANTEEN' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className={`text-[11px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>食堂</label>
+                        <select
+                          value={selectedCanteenArea}
+                          onChange={(e) => setSelectedCanteenArea(e.target.value)}
+                          className={`w-full px-2.5 py-2 rounded-xl border outline-none text-xs font-bold transition-all ${
+                            darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200 focus:border-blue-500' : 'bg-slate-200/50 border-slate-200 text-slate-800 focus:border-blue-500'
+                          }`}
+                        >
+                          <option value="">全部</option>
+                          {canteenAreas.map(a => (
+                            <option key={a} value={a}>{a}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={`text-[11px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>楼层</label>
+                        <select
+                          value={selectedCanteenFloor}
+                          onChange={(e) => setSelectedCanteenFloor(e.target.value)}
+                          className={`w-full px-2.5 py-2 rounded-xl border outline-none text-xs font-bold transition-all ${
+                            darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200 focus:border-blue-500' : 'bg-slate-200/50 border-slate-200 text-slate-800 focus:border-blue-500'
+                          }`}
+                        >
+                          <option value="">全部</option>
+                          {canteenFloors.map(f => (
+                            <option key={f} value={f}>{f}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'MENTOR' && (
+                    <div className="space-y-1.5">
+                      <label className={`text-[11px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>学院</label>
+                      <select
+                        value={selectedMentorCollege}
+                        onChange={(e) => setSelectedMentorCollege(e.target.value)}
+                        className={`w-full px-2.5 py-2 rounded-xl border outline-none text-xs font-bold transition-all ${
+                          darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200 focus:border-blue-500' : 'bg-slate-200/50 border-slate-200 text-slate-800 focus:border-blue-500'
+                        }`}
+                      >
+                        <option value="">全部学院</option>
+                        {mentorColleges.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      if (sortKey === 'RATING') {
+                        setSortOrder((v) => (v === 'ASC' ? 'DESC' : 'ASC'));
+                      } else {
+                        setSortKey('RATING');
+                        setSortOrder('DESC');
+                      }
+                    }}
+                    className={`rounded-xl border px-3 py-2 flex items-center justify-between transition-all ${
+                      sortKey === 'RATING'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
+                        : darkMode
+                          ? 'border-slate-700 text-slate-200 hover:bg-slate-800/60'
+                          : 'border-slate-200 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArrowUpDown size={14} />
+                      <span className="text-xs font-bold">按评分</span>
+                    </div>
+                    <span className={`text-[10px] font-black ${sortKey === 'RATING' ? 'text-white/95' : darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {sortKey === 'RATING' ? (sortOrder === 'ASC' ? '↑' : '↓') : ''}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (sortKey === 'HEAT') {
+                        setSortOrder((v) => (v === 'ASC' ? 'DESC' : 'ASC'));
+                      } else {
+                        setSortKey('HEAT');
+                        setSortOrder('DESC');
+                      }
+                    }}
+                    className={`rounded-xl border px-3 py-2 flex items-center justify-between transition-all ${
+                      sortKey === 'HEAT'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
+                        : darkMode
+                          ? 'border-slate-700 text-slate-200 hover:bg-slate-800/60'
+                          : 'border-slate-200 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Flame size={14} />
+                      <span className="text-xs font-bold">按热度</span>
+                    </div>
+                    <span className={`text-[10px] font-black ${sortKey === 'HEAT' ? 'text-white/95' : darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {sortKey === 'HEAT' ? (sortOrder === 'ASC' ? '↑' : '↓') : ''}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search Box Wrapper - 处理位置和宽度 */}
         <div className={`transition-all duration-500 ease-in-out ${

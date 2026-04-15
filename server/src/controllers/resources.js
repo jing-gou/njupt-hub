@@ -157,6 +157,16 @@ export const updateResourceStatus = async (req, res) => {
       }
     }
 
+    // 如果状态变为 REJECTED，删除云端文件并清理文件字段
+    if (status === 'REJECTED' && resource.fileKey) {
+      try {
+        await deleteFile(resource.fileKey);
+      } catch (deleteErr) {
+        console.error('Failed to delete rejected file from cloud storage:', deleteErr);
+      }
+      updateData.fileKey = null;
+    }
+
     const updated = await prisma.resource.update({
       where: { id },
       data: updateData,
@@ -241,12 +251,18 @@ export const uploadResources = async (req, res) => {
 
     const titlesRaw = req.body?.titles;
     const titles = Array.isArray(titlesRaw) ? titlesRaw : titlesRaw ? [titlesRaw] : [];
+    const pathsRaw = req.body?.paths;
+    const paths = Array.isArray(pathsRaw) ? pathsRaw : pathsRaw ? [pathsRaw] : [];
 
     const created = await Promise.all(
       files.map(async (f, idx) => {
         const t = titles[idx];
+        const p = paths[idx];
         const defaultTitle = String(f.originalname).replace(/\.[^/.]+$/, '');
         const title = t ? String(t) : defaultTitle;
+        const normalizedPath = p
+          ? String(p).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+          : String(f.originalname);
         
         // 上传到七牛云 (初始进入待审核目录 pending/)
         const { url: fileUrl, name: fileKey } = await uploadToQiniu(f.buffer, f.originalname, PREFIX_PENDING, course, f.mimetype);
@@ -272,7 +288,7 @@ export const uploadResources = async (req, res) => {
             title,
             fileUrl,
             fileKey,
-            fileName: f.originalname,
+            fileName: normalizedPath,
             fileSize: f.size,
             mimeType: f.mimetype,
             course: String(course),

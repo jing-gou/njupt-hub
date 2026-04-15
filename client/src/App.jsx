@@ -122,7 +122,7 @@ if (isUnderMaintenance && isMobile()) {
       darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300'
     }`}>
       {/* 顶部导航栏 */}
-      <nav className={`sticky top-0 z-40 backdrop-blur-lg border-b transition-colors ${
+      <nav className={`fixed top-0 left-0 right-0 w-full z-40 backdrop-blur-lg border-b transition-colors ${
         darkMode 
           ? 'bg-slate-900/80 border-slate-800' 
           : 'bg-slate-100/85 border-slate-200'
@@ -234,6 +234,9 @@ if (isUnderMaintenance && isMobile()) {
           
         </div>
       </nav>
+
+      {/* 顶部导航栏占位，避免 fixed 覆盖页面内容 */}
+      <div className={`${isMobileNavCollapsed ? 'h-14' : 'h-16'} md:h-20`} />
 
       {/* 页面内容 */}
       <main className="min-h-[calc(100vh-73px)] pb-0 md:pb-0">

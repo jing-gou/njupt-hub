@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma.js';
-import { uploadToQiniu, PREFIX_ASSETS, getSignedUrl } from '../lib/qiniu.js';
+import { uploadToQiniu, PREFIX_ASSETS, getSignedUrl, normalizeStoredFileKey } from '../lib/qiniu.js';
 
 // 上传评价图片
 export const uploadReviewImage = async (req, res) => {
@@ -237,6 +237,7 @@ export const getUserStats = async (req, res) => {
 export const createReview = async (req, res) => {
   try {
     const { itemId, rating, comment, imageUrl } = req.body;
+    const normalizedImageKey = imageUrl ? normalizeStoredFileKey(imageUrl) : null;
     let reviewerId = req.user?.id; 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
@@ -294,7 +295,7 @@ export const createReview = async (req, res) => {
           data: {
             rating: parseFloat(rating),
             comment: reviewerId === req.user?.id ? comment : null, // 游客不存评论
-            imageUrl: reviewerId === req.user?.id ? imageUrl : null, // 游客不存图片
+            imageUrl: reviewerId === req.user?.id ? normalizedImageKey : null, // 游客不存图片
             ip: ip // 记录当前 IP
           },
           include: {
@@ -307,7 +308,7 @@ export const createReview = async (req, res) => {
           data: {
             rating: parseFloat(rating),
             comment: reviewerId === req.user?.id ? comment : null,
-            imageUrl: reviewerId === req.user?.id ? imageUrl : null,
+            imageUrl: reviewerId === req.user?.id ? normalizedImageKey : null,
             reviewerId,
             itemId: parseInt(itemId),
             ip: ip
@@ -379,9 +380,18 @@ export const getReports = async (req, res) => {
 export const deleteReviewByAdmin = async (req, res) => {
   try {
     const { reviewId } = req.params;
-    await prisma.review.delete({
-      where: { id: parseInt(reviewId) }
-    });
+    const id = parseInt(reviewId, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: '无效的评价 ID' });
+    }
+
+    // 当前 schema 未配置级联删除，需手动先删关联记录，避免外键约束失败
+    await prisma.$transaction([
+      prisma.like.deleteMany({ where: { reviewId: id } }),
+      prisma.reply.deleteMany({ where: { reviewId: id } }),
+      prisma.report.deleteMany({ where: { reviewId: id } }),
+      prisma.review.delete({ where: { id } })
+    ]);
     res.json({ message: '评价已删除' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -405,6 +415,7 @@ export const dismissReport = async (req, res) => {
 export const createReviewItem = async (req, res) => {
   try {
     const { title, description, imageUrl, type, location, college } = req.body;
+    const normalizedImageKey = imageUrl ? normalizeStoredFileKey(imageUrl) : null;
 
     if (!title || !type) {
       return res.status(400).json({ message: '标题和类型均为必填项' });
@@ -420,7 +431,7 @@ export const createReviewItem = async (req, res) => {
       data: {
         title: String(title),
         description: description ? String(description) : null,
-        imageUrl: imageUrl ? String(imageUrl) : null,
+        imageUrl: normalizedImageKey,
         type: type,
         location: location ? String(location) : null,
         college: college ? String(college) : null,

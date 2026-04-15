@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CircleUserRound, LogOut, RefreshCw } from 'lucide-react';
+import { CircleUserRound, LogOut, RefreshCw, Mail, ShieldCheck, ChevronRight, ArrowLeft, Sparkles } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -12,6 +12,7 @@ export default function Profile({ onGoLogin }) {
   const [error, setError] = useState('');
   const [status, setStatus] = useState('ALL');
   const [receivedLikes, setReceivedLikes] = useState(0);
+  const [activeSubPage, setActiveSubPage] = useState('home'); // 'home' | 'account'
 
   const statusOptions = useMemo(() => ['ALL', 'PENDING', 'APPROVED', 'REJECTED'], []);
   const statusLabels = {
@@ -99,6 +100,26 @@ export default function Profile({ onGoLogin }) {
     );
   }
 
+  const profileCards = [
+    {
+      key: 'username',
+      label: '用户名',
+      value: user?.username || '-',
+      tone: darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'
+    },
+    {
+      key: 'likes',
+      label: '累计获赞',
+      value: receivedLikes,
+      tone: darkMode ? 'border-blue-500/30 bg-blue-500/10' : 'border-blue-100 bg-blue-100',
+      valueClass: darkMode ? 'text-blue-400' : 'text-blue-600',
+      labelClass: darkMode ? 'text-blue-400' : 'text-blue-600'
+    }
+  ];
+
+  const roleLabel = user?.role || '-';
+  const emailLabel = user?.email || '-';
+
   return (
     <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
       <div
@@ -115,41 +136,90 @@ export default function Profile({ onGoLogin }) {
             </div>
             <div>
               <h2 className={`text-xl md:text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>个人中心</h2>
-              <p className={`text-xs md:text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>登录状态正常</p>
             </div>
           </div>
 
-          <button
-            onClick={logout}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all transform hover:scale-105 active:scale-95 ${
-              darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <LogOut size={18} /> 退出
-          </button>
-        </div>
-
-        <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'}`}>
-            <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>用户名</div>
-            <div className="font-semibold">{user?.username || '-'}</div>
-          </div>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'}`}>
-            <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>邮箱</div>
-            <div className="font-semibold">{user?.email || '-'}</div>
-          </div>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-slate-200'}`}>
-            <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>角色</div>
-            <div className="font-semibold">{user?.role || '-'}</div>
-          </div>
-          <div className={`rounded-xl p-4 border ${darkMode ? 'border-blue-500/30 bg-blue-500/10' : 'border-blue-100 bg-blue-100'}`}>
-            <div className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'} font-bold`}>累计获赞</div>
-            <div className={`text-xl font-black ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{receivedLikes}</div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
+            {activeSubPage === 'account' && (
+              <button
+                onClick={() => setActiveSubPage('home')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl font-medium transition-all transform hover:scale-105 active:scale-95 ${
+                  darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <ArrowLeft size={16} /> 返回
+              </button>
+            )}
+            <button
+              onClick={logout}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all transform hover:scale-105 active:scale-95 ${
+                darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <LogOut size={18} /> 退出
+            </button>
+          </div>
+        </div>
+
+        {activeSubPage === 'home' ? (
+          <>
+            <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+              {profileCards.map((card) => (
+                <div key={card.key} className={`rounded-2xl p-4 border transition-all ${card.tone}`}>
+                  <div className={`text-xs font-medium ${card.labelClass || (darkMode ? 'text-slate-500' : 'text-slate-500')}`}>{card.label}</div>
+                  <div className={`font-bold text-lg ${card.valueClass || ''}`}>{card.value}</div>
+                </div>
+              ))}
+              <button
+                onClick={() => setActiveSubPage('account')}
+                className={`rounded-2xl p-4 border text-left transition-all group ${
+                  darkMode
+                    ? 'border-slate-700 bg-slate-900/30 hover:bg-slate-800/70'
+                    : 'border-slate-200 bg-white/70 hover:bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>账号详情</div>
+                    <div className={`font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>查看邮箱与角色</div>
+                  </div>
+                  <ChevronRight size={18} className={`transition-transform group-hover:translate-x-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+                </div>
+              </button>
+            </div>
+
+           
+          </>
+        ) : (
+          <div className={`rounded-2xl border p-4 md:p-5 space-y-4 ${
+            darkMode ? 'border-slate-700 bg-slate-900/30' : 'border-slate-200 bg-white/70'
+          }`}>
+            <h3 className={`text-sm font-bold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>账号详情</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className={`rounded-xl p-4 border ${
+                darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-slate-50'
+              }`}>
+                <div className={`text-xs mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>邮箱</div>
+                <div className={`font-semibold break-all flex items-center gap-2 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                  <Mail size={14} className="text-blue-500" />
+                  {emailLabel}
+                </div>
+              </div>
+              <div className={`rounded-xl p-4 border ${
+                darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-slate-50'
+              }`}>
+                <div className={`text-xs mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>角色</div>
+                <div className={`font-semibold flex items-center gap-2 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                  <ShieldCheck size={14} className="text-blue-500" />
+                  {roleLabel}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-start gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {statusOptions.map((s) => (
               <button
                 key={s}
@@ -168,16 +238,6 @@ export default function Profile({ onGoLogin }) {
               </button>
             ))}
           </div>
-
-          <button
-            onClick={fetchMyResources}
-            disabled={loading}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
-              darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            } ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
-          >
-            <RefreshCw size={18} /> 刷新
-          </button>
         </div>
 
         <div className={`rounded-xl border overflow-hidden ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -242,8 +302,6 @@ export default function Profile({ onGoLogin }) {
             ))}
           </div>
         </div>
-
-        <div className={`text-xs ${darkMode ? 'text-slate-600' : 'text-slate-500'}`}>Token: {token ? '已保存到本地' : '无'}</div>
       </div>
     </div>
   );

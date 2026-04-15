@@ -139,6 +139,27 @@ export const getSignedUrl = (fileKey, expires = 7200) => {
 };
 
 /**
+ * 将可访问 URL/Key 统一归一化为可入库存储的 key
+ */
+export const normalizeStoredFileKey = (fileValue) => {
+  if (!fileValue) return '';
+
+  const raw = String(fileValue).trim();
+  if (!raw) return '';
+
+  if (raw.includes('://')) {
+    try {
+      const url = new URL(raw);
+      return decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    } catch {
+      return raw.replace(/^\/+/, '');
+    }
+  }
+
+  return raw.replace(/^\/+/, '');
+};
+
+/**
  * 删除文件
  */
 export const deleteFile = async (fileKey) => {
@@ -159,6 +180,7 @@ export const deleteFile = async (fileKey) => {
 export default { 
   uploadToQiniu, 
   getSignedUrl, 
+  normalizeStoredFileKey,
   moveFile,
   deleteFile,
   PREFIX_PUBLIC,
