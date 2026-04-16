@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { GitPullRequest, FileUp, CheckCircle2, ShieldAlert, Search, Loader2, X, AlertCircle, Upload as UploadIcon, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, FileText, File } from 'lucide-react';
+import { GitPullRequest, FileUp, CheckCircle2, ShieldAlert, Search, Loader2, X, AlertCircle, Upload as UploadIcon, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, FileText, File as FileIcon } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -174,7 +174,7 @@ export default function BatchUpload({ onNavigate }) {
     if (['mp3', 'wav', 'flac', 'aac'].includes(ext)) {
       return <FileAudio {...iconProps} className={darkMode ? 'text-cyan-400' : 'text-cyan-500'} />;
     }
-    return <File {...iconProps} />;
+    return <FileIcon {...iconProps} />;
   };
 
   const currentDirCandidates = useMemo(
