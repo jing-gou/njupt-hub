@@ -117,6 +117,8 @@ const Footer = ({ darkMode }) => {
               <p>1. 本站资源均由用户分享或收集自网络，版权归原作者所有，仅供学习研究使用。</p>
               <p>2. 资料不代表本站观点，本站不保证内容的准确性及完整性，不承担任何法律责任。</p>
               <p>3. 严禁将本站资料用于任何形式的商业用途。若有侵权请联系作者删除。</p>
+              <p>4. 本站使用 <a href="https://umami.is/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Umami</a> 进行网站统计。</p>‘
+              <p>5. 本站与【南京邮电大学】及其下属组织无任何关联！</p>
             </div>
           </div>
         </div>

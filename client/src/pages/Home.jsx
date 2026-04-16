@@ -489,9 +489,14 @@ export default function Home({ onNavigate }) {
             </div>
 
             <div className={`relative max-w-4xl mx-auto px-4 pt-12 pb-4 text-center ${showFilter ? 'z-[100]' : ''}`}>
-              <h1 className={`text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r transition-all duration-900 hover:scale-105 active:scale-95 ${darkMode ? 'from-blue-400 to-pink-400' : 'from-blue-600 to-pink-600'} ${isSearching ? 'opacity-10 blur-md scale-90' : 'opacity-100'}`}>
+              <button
+                type="button"
+                onClick={() => onNavigate?.('whatsnew')}
+                className={`text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r transition-all duration-900 hover:scale-105 active:scale-95 focus:outline-none ${darkMode ? 'from-blue-400 to-pink-400' : 'from-blue-600 to-pink-600'} ${isSearching ? 'opacity-10 blur-md scale-90 pointer-events-none' : 'opacity-100'}`}
+                title="查看更新日志"
+              >
                 NJUPT Hub
-              </h1>
+              </button>
               <p className={`text-lg md:text-xl mb-8 transition-all duration-500 ${darkMode ? 'text-slate-400' : 'text-slate-600'} ${isSearching ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'}`}>
                 一站式资料整合网站
               </p>
