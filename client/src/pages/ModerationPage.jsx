@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -12,11 +12,15 @@ import {
   Loader2,
   ExternalLink,
   FolderOpen,
+  Folder,
+  ChevronRight,
   Search,
-  MessageSquare
+  MessageSquare,
+  File as FileIcon
 } from 'lucide-react';
 
 export default function ModerationPage() {
+  const RESOURCE_PAGE_SIZE = 30;
   const { darkMode } = useTheme();
   const { token, user } = useAuth();
   const [activeTab, setActiveTab] = useState('RESOURCES'); // RESOURCES or REPORTS
@@ -32,15 +36,25 @@ export default function ModerationPage() {
   const [fileManagerQuery, setFileManagerQuery] = useState('');
   const [selectedFileManagerIds, setSelectedFileManagerIds] = useState([]);
   const [selectedPendingReviewIds, setSelectedPendingReviewIds] = useState([]);
+  const [resourcePage, setResourcePage] = useState(1);
+  const [resourceTotal, setResourceTotal] = useState(0);
+  const [openFileFolders, setOpenFileFolders] = useState({});
 
   // 新增状态：控制确认弹窗
   const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, reviewId: null });
 
-  const fetchResources = async () => {
+  const fetchResources = async (page = resourcePage) => {
     try {
-      const res = await fetch('/api/resources?status=PENDING&pageSize=50');
+      const qs = new URLSearchParams({
+        status: 'PENDING',
+        page: String(page),
+        pageSize: String(RESOURCE_PAGE_SIZE),
+      });
+      const res = await fetch(`/api/resources?${qs.toString()}`);
       const data = await res.json();
       setResources(data.items || []);
+      setResourceTotal(Number(data?.total || 0));
+      setResourcePage(Number(data?.page || page || 1));
     } catch (err) {
       console.error('Fetch resources error:', err);
     }
@@ -73,7 +87,7 @@ export default function ModerationPage() {
   const loadData = async () => {
     setLoading(true);
     if (activeTab === 'RESOURCES') {
-      await fetchResources();
+      await fetchResources(1);
     } else if (activeTab === 'REPORTS') {
       await fetchReports();
     } else if (activeTab === 'PENDING_REVIEWS') {
@@ -85,8 +99,16 @@ export default function ModerationPage() {
   };
 
   useEffect(() => {
+    if (activeTab === 'RESOURCES') {
+      setResourcePage(1);
+    }
     loadData();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'RESOURCES') return;
+    fetchResources(resourcePage);
+  }, [resourcePage]);
 
   useEffect(() => {
     setSelectedResourceIds([]);
@@ -98,6 +120,36 @@ export default function ModerationPage() {
   useEffect(() => {
     setSelectedResourceIds((prev) => prev.filter((id) => resources.some((r) => r.id === id)));
   }, [resources]);
+
+  const fileManagerTree = useMemo(() => {
+    const root = {};
+    for (const item of fileManagerItems) {
+      const course = String(item.course || '未分类课程').trim() || '未分类课程';
+      const normalizedPath = String(item.fileName || item.title || '')
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+      const rawParts = normalizedPath ? normalizedPath.split('/').filter(Boolean) : [item.title || `文件-${item.id}`];
+      const parts =
+        rawParts.length > 1 && rawParts[0] === course
+          ? rawParts.slice(1)
+          : rawParts;
+      const fileLeafName = parts[parts.length - 1] || item.title || `文件-${item.id}`;
+      const folders = parts.slice(0, -1);
+
+      if (!root[course]) root[course] = { files: [], folders: {} };
+      let cursor = root[course];
+      for (const folder of folders) {
+        if (!cursor.folders[folder]) cursor.folders[folder] = { files: [], folders: {} };
+        cursor = cursor.folders[folder];
+      }
+      cursor.files.push({ ...item, fileLeafName });
+    }
+    return root;
+  }, [fileManagerItems]);
+
+  const toggleFileFolder = (pathKey) => {
+    setOpenFileFolders((prev) => ({ ...prev, [pathKey]: !prev[pathKey] }));
+  };
 
   useEffect(() => {
     setSelectedReportIds((prev) => prev.filter((id) => reports.some((r) => r.id === id)));
@@ -214,7 +266,11 @@ export default function ModerationPage() {
       if (!res.ok) {
         throw new Error(data?.message || data?.error || '操作失败');
       }
-      setResources(resources.filter(r => r.id !== id));
+      if (activeTab === 'RESOURCES') {
+        await fetchResources(resourcePage);
+      } else {
+        setResources(resources.filter(r => r.id !== id));
+      }
       setFileManagerItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
       toast.success('操作成功');
     } catch (err) {
@@ -426,8 +482,8 @@ export default function ModerationPage() {
       );
       const results = await Promise.all(tasks);
       const successCount = results.filter((r) => r.ok).length;
-      setResources((prev) => prev.filter((r) => !selectedResourceIds.includes(r.id)));
       setSelectedResourceIds([]);
+      await fetchResources(resourcePage);
       toast.success(`批量操作完成：成功 ${successCount} / ${results.length}`);
     } catch (err) {
       toast.error('批量操作失败');
@@ -487,6 +543,107 @@ export default function ModerationPage() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const FileTreeNode = ({ folderName, node, path = '', level = 0 }) => {
+    const fullPath = path ? `${path}/${folderName}` : folderName;
+    const isOpen = Boolean(openFileFolders[fullPath]);
+    const folderCount = Object.keys(node.folders).length;
+    const itemCount = node.files.length + folderCount;
+
+    return (
+      <div className={`${level === 0 ? `rounded-xl border ${darkMode ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-white'}` : ''}`}>
+        <button
+          onClick={() => toggleFileFolder(fullPath)}
+          className={`w-full flex items-center justify-between px-3 py-2 text-left ${level === 0 ? '' : darkMode ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}
+          style={{ paddingLeft: `${12 + level * 18}px` }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Folder size={16} className={darkMode ? 'text-blue-400' : 'text-blue-500'} />
+            <span className={`text-sm font-semibold truncate ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{folderName}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{itemCount}</span>
+          </div>
+          <ChevronRight size={16} className={`transition-transform ${isOpen ? 'rotate-90' : ''} ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+        </button>
+
+        {isOpen && (
+          <div className={`${level === 0 ? `border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}` : ''}`}>
+            {Object.entries(node.folders).map(([subName, subNode]) => (
+              <FileTreeNode key={`${fullPath}/${subName}`} folderName={subName} node={subNode} path={fullPath} level={level + 1} />
+            ))}
+            {node.files.map((item) => (
+              <div
+                key={item.id}
+                className={`px-3 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2 ${darkMode ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}
+                style={{ paddingLeft: `${32 + level * 18}px` }}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedFileManagerIds.includes(item.id)}
+                      onChange={() => toggleFileManagerSelection(item.id)}
+                      className="w-4 h-4 accent-blue-500"
+                    />
+                    <FileIcon size={14} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
+                    <span className={`text-sm truncate ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{item.fileLeafName}</span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      item.status === 'APPROVED' ? 'bg-green-500/10 text-green-500' :
+                      item.status === 'REJECTED' ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'
+                    }`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <p className={`text-xs ml-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    上传者: {item.uploader?.username || '-'} · 下载: {item.downloadCount ?? 0}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={item.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 inline-flex items-center gap-1"
+                  >
+                    查看 <ExternalLink size={12} />
+                  </a>
+                  <button
+                    onClick={() => handleResourceAction(item.id, 'APPROVED')}
+                    disabled={actionLoading === item.id}
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50"
+                  >
+                    可见
+                  </button>
+                  <button
+                    onClick={() => handleResourceAction(item.id, 'REJECTED')}
+                    disabled={actionLoading === item.id}
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
+                  >
+                    隐藏
+                  </button>
+                  <button
+                    onClick={() => handleRenameResource(item)}
+                    disabled={actionLoading === `rename-${item.id}`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                      darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    } disabled:opacity-50`}
+                  >
+                    重命名
+                  </button>
+                  <button
+                    onClick={() => handleDeleteResource(item)}
+                    disabled={actionLoading === `delete-${item.id}`}
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -568,7 +725,7 @@ export default function ModerationPage() {
                       {selectedResourceIds.length === resources.length ? '取消全选' : '全选'}
                     </button>
                     <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                      已选 {selectedResourceIds.length} / {resources.length}
+                      已选 {selectedResourceIds.length} / {resources.length} · 共 {resourceTotal} 条
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -643,6 +800,37 @@ export default function ModerationPage() {
                     </div>
                   </div>
                 ))}
+                {resourceTotal > RESOURCE_PAGE_SIZE && (
+                  <div className={`mt-2 p-3 rounded-xl border flex items-center justify-between ${
+                    darkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200'
+                  }`}>
+                    <button
+                      onClick={() => setResourcePage((prev) => Math.max(1, prev - 1))}
+                      disabled={resourcePage <= 1}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      上一页
+                    </button>
+                    <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      第 {resourcePage} / {Math.max(1, Math.ceil(resourceTotal / RESOURCE_PAGE_SIZE))} 页
+                    </span>
+                    <button
+                      onClick={() =>
+                        setResourcePage((prev) =>
+                          Math.min(Math.max(1, Math.ceil(resourceTotal / RESOURCE_PAGE_SIZE)), prev + 1)
+                        )
+                      }
+                      disabled={resourcePage >= Math.max(1, Math.ceil(resourceTotal / RESOURCE_PAGE_SIZE))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      下一页
+                    </button>
+                  </div>
+                )}
               </div>
             )
           ) : activeTab === 'REPORTS' ? (
@@ -853,83 +1041,13 @@ export default function ModerationPage() {
               {fileManagerItems.length === 0 ? (
                 <div className="text-center py-20 text-slate-500">暂无文件</div>
               ) : (
-                <div className="grid gap-4">
-                  {fileManagerItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`p-4 md:p-5 rounded-2xl border space-y-3 ${
-                        darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedFileManagerIds.includes(item.id)}
-                              onChange={() => toggleFileManagerSelection(item.id)}
-                              className="w-4 h-4 accent-blue-500"
-                            />
-                            <FolderOpen size={16} className="text-blue-500" />
-                            <h3 className={`font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>{item.title}</h3>
-                          </div>
-                          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                            课程: {item.course} · 文件: {item.fileName || '-'}
-                          </div>
-                          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                            上传者: {item.uploader?.username || '-'} · 下载: {item.downloadCount ?? 0}
-                          </div>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.status === 'APPROVED' ? 'bg-green-500/10 text-green-500' :
-                          item.status === 'REJECTED' ? 'bg-red-500/10 text-red-500' :
-                          'bg-amber-500/10 text-amber-500'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <a
-                          href={item.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 inline-flex items-center gap-1"
-                        >
-                          查看文件 <ExternalLink size={12} />
-                        </a>
-                        <button
-                          onClick={() => handleResourceAction(item.id, 'APPROVED')}
-                          disabled={actionLoading === item.id}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-500/10 text-green-500 hover:bg-green-500/20 disabled:opacity-50"
-                        >
-                          设为可见
-                        </button>
-                        <button
-                          onClick={() => handleResourceAction(item.id, 'REJECTED')}
-                          disabled={actionLoading === item.id}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
-                        >
-                          设为隐藏
-                        </button>
-                        <button
-                          onClick={() => handleRenameResource(item)}
-                          disabled={actionLoading === `rename-${item.id}`}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                            darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          } disabled:opacity-50`}
-                        >
-                          重命名
-                        </button>
-                        <button
-                          onClick={() => handleDeleteResource(item)}
-                          disabled={actionLoading === `delete-${item.id}`}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                        >
-                          删除文件
-                        </button>
-                      </div>
-                    </div>
+                <div className="grid gap-3">
+                  {Object.entries(fileManagerTree).map(([courseName, courseNode]) => (
+                    <FileTreeNode
+                      key={courseName}
+                      folderName={courseName}
+                      node={courseNode}
+                    />
                   ))}
                 </div>
               )}
