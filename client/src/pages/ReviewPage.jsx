@@ -694,21 +694,27 @@ export default function ReviewPage() {
           <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>正在加载...</p>
         </div>
       ) : (
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-500 ${isSearching ? 'opacity-10 blur-md pointer-events-none' : 'opacity-100'}`}>
-          {filteredAndSortedItems.map((item) => (
-            <ReviewCard
-              key={item.id}
-              item={item}
-              darkMode={darkMode}
-              onClick={() => setSelectedItemId(item.id)}
-            />
-          ))}
-          {filteredAndSortedItems.length === 0 && (
-            <div className="col-span-full text-center py-20">
-              <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>暂无符合条件的项目</p>
+        filteredAndSortedItems.length === 0 ? (
+          <div className={`text-center py-20 transition-all duration-500 ${isSearching ? 'opacity-10 blur-md pointer-events-none' : 'opacity-100'}`}>
+            <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>暂无符合条件的项目</p>
+          </div>
+        ) : (
+          <div className={`transition-all duration-500 ${
+            isSearching ? 'opacity-10 blur-md pointer-events-none' : 'opacity-100'
+          }`}>
+            <div className="columns-1 md:columns-2 lg:columns-3 md:gap-6">
+              {filteredAndSortedItems.map((item) => (
+                <div key={item.id} className="mb-6 break-inside-avoid">
+                  <ReviewCard
+                    item={item}
+                    darkMode={darkMode}
+                    onClick={() => setSelectedItemId(item.id)}
+                  />
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )
       )}
 
       {/* Floating Action Button */}

@@ -44,5 +44,30 @@ services:
     depends_on:
       - server
 
+  umami-db:
+    image: postgres:16-alpine
+    container_name: njupt-hub-umami-db-1
+    restart: always
+    environment:
+      POSTGRES_DB: ${UMAMI_DB_NAME:-umami}
+      POSTGRES_USER: ${UMAMI_DB_USER:-umami}
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD}
+    volumes:
+      - umami_db_data:/var/lib/postgresql/data
+
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: njupt-hub-umami-1
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${UMAMI_DB_USER:-umami}:${UMAMI_DB_PASSWORD}@umami-db:5432/${UMAMI_DB_NAME:-umami}
+      DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_APP_SECRET}
+    ports:
+      - "3003:3000"
+    depends_on:
+      - umami-db
+
 volumes:
   mysql_data:
+  umami_db_data:

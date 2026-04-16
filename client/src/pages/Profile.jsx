@@ -23,6 +23,8 @@ export default function Profile({ onGoLogin }) {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [showExpRuleTip, setShowExpRuleTip] = useState(false);
   const [expRefreshing, setExpRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
   const statusOptions = useMemo(() => ['ALL', 'PENDING', 'APPROVED', 'REJECTED'], []);
   const statusLabels = {
@@ -76,6 +78,10 @@ export default function Profile({ onGoLogin }) {
     fetchMyResources();
     fetchStats();
   }, [user?.id, status]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [status, items.length]);
 
   useEffect(() => {
     setNewUsername(user?.username || '');
@@ -142,6 +148,12 @@ export default function Profile({ onGoLogin }) {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    toast.success('退出登录成功');
+    onGoLogin?.();
+  };
+
   if (!isAuthed) {
     return (
       <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
@@ -183,6 +195,9 @@ export default function Profile({ onGoLogin }) {
   const levelProgressTotal = Number(user?.levelProgressTotal || 100);
   const nextLevelExp = Number(user?.nextLevelExp || 100);
   const progressPercent = Math.min(100, Math.max(0, (levelProgress / levelProgressTotal) * 100));
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedItems = items.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="max-w-4xl mx-auto px-2 py-4 md:p-4 space-y-6 md:space-y-8 animate-in fade-in duration-700">
@@ -232,7 +247,7 @@ export default function Profile({ onGoLogin }) {
               </button>
             )}
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all transform hover:scale-105 active:scale-95 ${
                 darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
@@ -428,7 +443,7 @@ export default function Profile({ onGoLogin }) {
           
           {/* 列表内容 */}
           <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {items.map((r) => (
+            {pagedItems.map((r) => (
               <div key={r.id}>
                 {/* 桌面端行布局 */}
                 <div className={`hidden md:grid grid-cols-12 px-4 py-3 text-sm ${
@@ -474,6 +489,33 @@ export default function Profile({ onGoLogin }) {
             ))}
           </div>
         </div>
+        {!error && items.length > 0 && (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              上一页
+            </button>
+            <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              {safePage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              下一页
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -210,13 +210,15 @@ export default function ModerationPage() {
         },
         body: JSON.stringify({ status })
       });
-      if (res.ok) {
-        setResources(resources.filter(r => r.id !== id));
-        setFileManagerItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
-        toast.success('操作成功');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || '操作失败');
       }
+      setResources(resources.filter(r => r.id !== id));
+      setFileManagerItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+      toast.success('操作成功');
     } catch (err) {
-      toast.error('操作失败');
+      toast.error(err?.message || '操作失败');
     } finally {
       setActionLoading(null);
     }

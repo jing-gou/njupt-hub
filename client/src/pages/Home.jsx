@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Folder, Eye, FileText, Download, ChevronRight, Loader2, Trophy, Search, Github, Filter, ChevronDown, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, File, X } from 'lucide-react';
+import { Folder, Eye, FileText, Download, ChevronRight, Loader2, Trophy, Search, Github, Filter, ChevronDown, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, File, X, RefreshCw } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { SiGithub } from '@icons-pack/react-simple-icons';
 
@@ -21,6 +21,10 @@ export default function Home({ onNavigate }) {
   const isImage = (fileName) => /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
   const isPDF = (fileName) => /\.pdf$/i.test(fileName);
   const [activePreview, setActivePreview] = useState(null);
+  const isPreviewAllowed = false;
+
+  const FILE_TREE_CACHE_KEY = 'njupt_hub:file_tree_cache:v1';
+  const FILE_TREE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 分钟
 
   
   // 搜索联动状态
@@ -49,6 +53,17 @@ export default function Home({ onNavigate }) {
     } catch {
       return raw;
     }
+  };
+
+  const hashFolderKey = (value) => {
+    // FNV-1a 32-bit, base36 输出，足够短且稳定
+    const str = String(value ?? '');
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i += 1) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(36);
   };
 
   const fetchResources = async () => {
@@ -98,10 +113,18 @@ export default function Home({ onNavigate }) {
       
       for (const r of items) {
         const coursePath = normalizeRelativePath(decodeMojibake(r.course || '未分类'));
-        const originalPath = normalizeRelativePath(decodeMojibake(r.fileName || extractFileNameFromUrl(r.fileUrl)));
-        const subFolders = originalPath.split('/').filter(Boolean).slice(0, -1);
-        const originalFileName = originalPath.split('/').filter(Boolean).pop() || extractFileNameFromUrl(r.fileUrl);
-        const pathParts = [...coursePath.split('/').filter(Boolean), ...subFolders];
+        const courseParts = coursePath.split('/').filter(Boolean);
+        const firstCoursePart = courseParts[0] || '未分类';
+        // 优先使用数据库里的 fileName 作为“相对路径”（含子目录），这样目录划分和后端存储一致
+        const relativePath = normalizeRelativePath(decodeMojibake(r.fileName || extractFileNameFromUrl(r.fileUrl)));
+        const relativeParts = relativePath.split('/').filter(Boolean);
+        const normalizedRelativeParts =
+          relativeParts.length > 1 && relativeParts[0] === firstCoursePart
+            ? relativeParts.slice(1)
+            : relativeParts;
+        const subFolders = normalizedRelativeParts.slice(0, -1);
+        const leafFileName = normalizedRelativeParts.at(-1) || extractFileNameFromUrl(r.fileUrl);
+        const pathParts = [...courseParts, ...subFolders];
         
         let current = root;
         for (const part of pathParts) {
@@ -115,7 +138,7 @@ export default function Home({ onNavigate }) {
           id: r.id,
           sha: String(r.id),
           name: r.title,
-          fileName: originalFileName,
+          fileName: leafFileName,
           path: r.fileUrl,
           size: r.fileSize ? `${(r.fileSize / 1024 / 1024).toFixed(2)} MB` : '未知',
           updatedAt: new Date(r.updatedAt).toLocaleDateString(),
@@ -125,12 +148,39 @@ export default function Home({ onNavigate }) {
 
       setResources(root.folders);
       localStorage.setItem('course_list', JSON.stringify(Object.keys(root.folders)));
+
+      try {
+        localStorage.setItem(
+          FILE_TREE_CACHE_KEY,
+          JSON.stringify({
+            cachedAt: Date.now(),
+            folders: root.folders,
+          }),
+        );
+      } catch (e) {
+        // localStorage 可能满了；忽略缓存写入
+      }
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleRefreshCache = () => {
+    try {
+      localStorage.removeItem(FILE_TREE_CACHE_KEY);
+    } catch (e) {
+      // ignore
+    }
+    fetchResources();
+  };
+
+  useEffect(() => {
+    const onRefresh = () => handleRefreshCache();
+    window.addEventListener('njupt-hub:refresh-home-cache', onRefresh);
+    return () => window.removeEventListener('njupt-hub:refresh-home-cache', onRefresh);
+  }, []);
 
   const handlePreview = async (file) => {
     try {
@@ -177,7 +227,29 @@ export default function Home({ onNavigate }) {
 };
 
   useEffect(() => {
-    fetchResources();
+    let usedCache = false;
+    try {
+      const raw = localStorage.getItem(FILE_TREE_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const cachedAt = Number(parsed?.cachedAt);
+        const folders = parsed?.folders;
+        const isFresh = Number.isFinite(cachedAt) && (Date.now() - cachedAt) < FILE_TREE_CACHE_TTL_MS;
+        if (folders && typeof folders === 'object') {
+          setResources(folders);
+          usedCache = true;
+          setLoading(false);
+          if (!isFresh) {
+            // 缓存过期：后台刷新一次
+            fetchResources();
+          }
+        }
+      }
+    } catch {
+      // ignore broken cache
+    }
+
+    if (!usedCache) fetchResources();
   }, []);
 
   const toggleFolder = (path) => {
@@ -204,7 +276,8 @@ export default function Home({ onNavigate }) {
   // --- 递归文件夹组件 ---
   const FolderNode = ({ folderName, data, path, level = 0, isLastOfParent = false }) => {
     const fullPath = path ? `${path}/${folderName}` : folderName;
-    const isOpen = openFolders[fullPath];
+    const folderKey = hashFolderKey(fullPath);
+    const isOpen = openFolders[folderKey];
     const indent = level; // 进一步减小移动端缩进
     const getFolderColor = () => {
       if (level === 0) return darkMode ? 'text-purple-400' : 'text-purple-500';
@@ -230,7 +303,7 @@ export default function Home({ onNavigate }) {
           : (darkMode ? 'bg-slate-800/10' : 'bg-slate-50/50')
       } ${isLastOfParent ? 'md:rounded-b-xl' : ''}`}>
         <button
-          onClick={() => toggleFolder(fullPath)}
+          onClick={() => toggleFolder(folderKey)}
           className={`w-full flex items-center justify-between p-4 transition-all transform active:scale-[0.99] ${level === 0 ? 'md:rounded-t-xl' : ''} ${getBgColor()}`}
           style={{ paddingLeft: `${window.innerWidth < 768 ? 0.75 + indent * 0.4 : 3 + indent * 0.75}rem` }}
         >
@@ -300,7 +373,7 @@ export default function Home({ onNavigate }) {
 
                     {/* 操作列 */}
                     <div className="col-span-2 flex items-center gap-1 md:gap-2 justify-end">
-                      {isPreviewable && (
+                      {isPreviewAllowed && isPreviewable && (
                         <button 
                           onClick={() => handlePreview(file)}
                           className={`p-1.5 md:p-2 rounded-lg transition-all transform hover:scale-110 active:scale-90 ${darkMode ? 'text-blue-400 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'}`}
@@ -448,17 +521,30 @@ export default function Home({ onNavigate }) {
                     </div>
                   )}
                 </div>
+
+                <button
+                  onClick={handleRefreshCache}
+                  className={`hidden md:flex items-center gap-2 px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${
+                    darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'
+                  }`}
+                  title="清空缓存并重新拉取"
+                >
+                  <RefreshCw size={18} />
+                  <span>刷新</span>
+                </button>
+                
                 <button
                   onClick={() => onNavigate?.('leaderboard')}
-                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}
+                  className={`flex items-center gap-2 px-3 md:px-6 py-3 rounded-xl border transform transition-all duration-300 hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}
                 >
                   <Trophy size={18} /> 排行榜
                 </button>
+                
                 <a
                   href="https://github.com/jing-gou/njupt-notes"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
+                  className={`flex items-center gap-2 px-3 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
                 >
                   <Github size={18} />
                   <span>GitHub</span>
@@ -469,7 +555,7 @@ export default function Home({ onNavigate }) {
         </div>
 
         {/* 目录树同步上浮 */}
-        <div className={`max-w-4xl mx-auto px-2 md:px-4 pb-24 transition-all duration-500 ${isSearching ? 'relative z-[70] transform -translate-y-12 md:-translate-y-24' : showFilter ? 'relative z-0' : 'relative z-10'}`}>
+        <div className={`max-w-4xl mx-auto px-4 pb-24 transition-all duration-500 ${isSearching ? 'relative z-[70] transform -translate-y-12 md:-translate-y-24' : showFilter ? 'relative z-0' : 'relative z-10'}`}>
           {Object.keys(filteredResources).length === 0 ? (
             <div className="text-center py-20 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 relative z-0">
               <p>没有找到匹配的资料</p>

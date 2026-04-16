@@ -17,20 +17,21 @@ import {
   GraduationCap,
   Image as ImageIcon,
   Pencil,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 
 export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
   const { darkMode } = useTheme();
   const { token, user, isAuthed } = useAuth();
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'DEV';
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setLoadingSubmitting] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrls, setImageUrls] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
 
   // 新增状态：控制回复框显示
   const [activeReplyId, setActiveReplyId] = useState(null);
@@ -45,6 +46,14 @@ export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
   const [editComment, setEditComment] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const [editingItem, setEditingItem] = useState(false);
+  const [itemSubmitting, setItemSubmitting] = useState(false);
+  const [itemEditTitle, setItemEditTitle] = useState('');
+  const [itemEditDescription, setItemEditDescription] = useState('');
+  const [itemEditLocation, setItemEditLocation] = useState('');
+  const [itemEditCollege, setItemEditCollege] = useState('');
+  const [itemUploading, setItemUploading] = useState(false);
 
   const fetchDetail = async () => {
     try {
@@ -67,59 +76,74 @@ export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
   }, [itemId, token]);
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+    if (imageUrls.length >= 5) {
+      toast.error('最多上传 5 张图片');
+      return;
+    }
     if (!isAuthed || !token) {
-      setError('请先登录后再上传图片');
+      toast.error('请先登录后再上传图片');
       return;
     }
-    if (!file.type?.startsWith('image/')) {
-      setError('仅支持上传图片文件');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('图片大小不能超过 10MB');
-      return;
+    const remainSlots = Math.max(0, 5 - imageUrls.length);
+    const files = selectedFiles.slice(0, remainSlots);
+    if (selectedFiles.length > remainSlots) {
+      toast.error('最多上传 5 张图片，超出部分已忽略');
     }
 
     setUploading(true);
-    setError('');
 
     try {
-      const compressedFile = await compressImageForUpload(file);
-      const formData = new FormData();
-      formData.append('image', compressedFile);
-      const res = await fetch('/api/reviews/upload-image', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-      const contentType = res.headers.get('content-type') || '';
-      const data = contentType.includes('application/json')
-        ? await res.json()
-        : { message: await res.text() };
-      if (!res.ok) {
-        throw new Error(data.message || data.error || `上传失败 (${res.status})`);
+      const uploadedUrls = [];
+      for (const file of files) {
+        if (!file.type?.startsWith('image/')) {
+          toast.error(`已忽略非图片文件：${file.name}`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`图片大小不能超过 10MB：${file.name}`);
+          continue;
+        }
+
+        const compressedFile = await compressImageForUpload(file);
+        const formData = new FormData();
+        formData.append('image', compressedFile);
+        const res = await fetch('/api/reviews/upload-image', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData,
+        });
+        const contentType = res.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+          ? await res.json()
+          : { message: await res.text() };
+        if (!res.ok) {
+          throw new Error(data.message || data.error || `上传失败 (${res.status})`);
+        }
+        if (data.url) uploadedUrls.push(data.url);
       }
-      if (data.url) setImageUrl(data.url);
-      else throw new Error('上传成功但未返回图片链接');
+      if (uploadedUrls.length === 0) {
+        throw new Error('没有图片上传成功');
+      }
+      setImageUrls((prev) => [...prev, ...uploadedUrls].slice(0, 5));
     } catch (err) {
       console.error('Upload failed:', err);
-      setError(err.message || '图片上传失败');
+      toast.error(err.message || '图片上传失败');
     } finally {
       setUploading(false);
+      if (e?.target) e.target.value = '';
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (userRating === 0) {
-      setError('请先进行评分');
+      toast.error('请先进行评分');
       return;
     }
 
     setLoadingSubmitting(true);
-    setError('');
     try {
       const res = await fetch('/api/reviews/submit', {
         method: 'POST',
@@ -131,7 +155,7 @@ export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
           itemId,
           rating: userRating,
           comment: isAuthed ? comment : '', // 游客不发送评论
-          imageUrl: isAuthed ? imageUrl : '' // 游客不发送图片
+          imageUrl: isAuthed ? (imageUrls[0] || '') : '' // 后端当前为单图字段
         })
       });
       const data = await res.json().catch(() => ({}));
@@ -140,12 +164,12 @@ export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
         throw new Error(data.message || '提交失败');
       }
       setComment('');
-      setImageUrl('');
+      setImageUrls([]);
       setUserRating(0);
       toast.success(data?.message || '发布成功');
       fetchDetail(); 
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message || '提交失败');
     } finally {
       setLoadingSubmitting(false);
     }
@@ -156,6 +180,114 @@ export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
     setEditRating(Number(review.rating || 0));
     setEditComment(review.comment || '');
     setEditImageUrl(review.imageUrl || '');
+  };
+
+  const beginEditItem = () => {
+    if (!item) return;
+    setEditingItem(true);
+    setItemEditTitle(item.title || '');
+    setItemEditDescription(item.description || '');
+    setItemEditLocation(item.location || '');
+    setItemEditCollege(item.college || '');
+  };
+
+  const cancelEditItem = () => {
+    setEditingItem(false);
+    setItemEditTitle('');
+    setItemEditDescription('');
+    setItemEditLocation('');
+    setItemEditCollege('');
+  };
+
+  const handleItemImageUploadByAdmin = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!isAuthed || !token) return toast.error('请先登录');
+    if (!isAdmin) return toast.error('无权限');
+    if (!file.type?.startsWith('image/')) return toast.error('仅支持上传图片文件');
+    if (file.size > 10 * 1024 * 1024) return toast.error('图片大小不能超过 10MB');
+
+    setItemUploading(true);
+    try {
+      const compressedFile = await compressImageForUpload(file);
+      const formData = new FormData();
+      formData.append('image', compressedFile);
+      const res = await fetch(`/api/reviews/admin/items/${itemId}/image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const contentType = res.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await res.json()
+        : { message: await res.text() };
+      if (!res.ok) throw new Error(data?.message || data?.error || `上传失败 (${res.status})`);
+      toast.success('图片已更新');
+      // 上传即覆盖：直接刷新详情，让头图立刻变更
+      fetchDetail();
+    } catch (err) {
+      toast.error(err.message || '上传失败');
+    } finally {
+      setItemUploading(false);
+      // 允许重复选择同一文件触发 change
+      if (e?.target) e.target.value = '';
+    }
+  };
+
+  const handleUpdateItemByAdmin = async () => {
+    if (!isAuthed || !token) return toast.error('请先登录');
+    if (!isAdmin) return toast.error('无权限');
+    const nextTitle = String(itemEditTitle || '').trim();
+    if (!nextTitle) return toast.error('标题不能为空');
+
+    setItemSubmitting(true);
+    try {
+      const res = await fetch(`/api/reviews/admin/items/${itemId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: nextTitle,
+          description: itemEditDescription,
+          location: itemEditLocation,
+          college: itemEditCollege,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || '修改失败');
+      toast.success('项目已更新');
+      cancelEditItem();
+      fetchDetail();
+    } catch (err) {
+      toast.error(err.message || '修改失败');
+    } finally {
+      setItemSubmitting(false);
+    }
+  };
+
+  const handleDeleteItemByAdmin = async () => {
+    if (!isAuthed || !token) return toast.error('请先登录');
+    if (!isAdmin) return toast.error('无权限');
+    const confirmed = window.confirm('确认删除该评价项目吗？这将删除该项目下所有评价、回复、点赞与举报记录，且不可撤销。');
+    if (!confirmed) return;
+
+    setItemSubmitting(true);
+    try {
+      const res = await fetch(`/api/reviews/admin/items/${itemId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || '删除失败');
+      toast.success('项目已删除');
+      onBack?.();
+    } catch (err) {
+      toast.error(err.message || '删除失败');
+    } finally {
+      setItemSubmitting(false);
+    }
   };
 
   const cancelEditReview = () => {
@@ -335,9 +467,37 @@ export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
           <div className="flex-1 space-y-4 w-full">
             <div className="space-y-3">
               <div className="space-y-1">
-                <h1 className={`text-2xl md:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {item.title}
-                </h1>
+                <div className="flex items-start justify-between gap-3">
+                  <h1 className={`text-2xl md:text-3xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {item.title}
+                  </h1>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={beginEditItem}
+                        disabled={itemSubmitting}
+                        className={`p-2 rounded-xl border transition-all ${
+                          darkMode ? 'border-slate-700 text-slate-300 hover:bg-slate-800/60' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } ${itemSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        title="编辑项目"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteItemByAdmin}
+                        disabled={itemSubmitting}
+                        className={`p-2 rounded-xl border transition-all ${
+                          darkMode ? 'border-red-500/30 text-red-300 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-50'
+                        } ${itemSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        title="删除项目"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
                 
                 {/* 新增字段显示 */}
                 {(item.location || item.college) && (
@@ -379,140 +539,222 @@ export default function ReviewDetailPage({ itemId, onBack, onNavigate }) {
             </div>
           </div>
         </div>
+
+        {editingItem && isAdmin && (
+          <div className={`mt-2 rounded-2xl border p-4 md:p-5 space-y-3 animate-in fade-in duration-200 ${
+            darkMode ? 'bg-slate-900/30 border-slate-700' : 'bg-slate-50/60 border-slate-200'
+          }`}>
+            <div className="text-sm font-bold text-blue-500">编辑项目</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>标题</div>
+                <input
+                  value={itemEditTitle}
+                  onChange={(e) => setItemEditTitle(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl border outline-none text-sm ${
+                    darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>图片（上传覆盖）</div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-16 h-16 rounded-xl overflow-hidden border ${
+                    darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-200 bg-white'
+                  } ${item.type === 'MENTOR' ? 'rounded-full' : ''}`}>
+                    <img
+                      src={item.imageUrl || 'https://placehold.co/200x200?text=Item'}
+                      alt="Item"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = 'https://placehold.co/200x200?text=Error';
+                      }}
+                    />
+                  </div>
+                  <label className={`px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                    darkMode ? 'border-slate-700 text-slate-200 hover:bg-slate-800/60' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                  } ${itemUploading ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    {itemUploading ? '上传中...' : '选择图片'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={itemUploading}
+                      onChange={handleItemImageUploadByAdmin}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>地点（可选）</div>
+                <input
+                  value={itemEditLocation}
+                  onChange={(e) => setItemEditLocation(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl border outline-none text-sm ${
+                    darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>学院（可选）</div>
+                <input
+                  value={itemEditCollege}
+                  onChange={(e) => setItemEditCollege(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl border outline-none text-sm ${
+                    darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>简介（可选）</div>
+              <textarea
+                value={itemEditDescription}
+                onChange={(e) => setItemEditDescription(e.target.value)}
+                rows={3}
+                className={`w-full px-3 py-2 rounded-xl border outline-none text-sm ${
+                  darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                }`}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleUpdateItemByAdmin}
+                disabled={itemSubmitting || itemUploading}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                保存项目
+              </button>
+              <button
+                type="button"
+                onClick={cancelEditItem}
+                disabled={itemSubmitting || itemUploading}
+                className={`px-3 py-2 rounded-xl text-xs font-bold ${
+                  darkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                } disabled:opacity-60`}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Write Review Section */}
       <div
-        className={`rounded-2xl md:rounded-3xl border p-4 md:p-8 space-y-6 ${
+        className={`rounded-2xl border p-4 md:p-5 space-y-4 ${
           darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'
         }`}
       >
-        <h2 className={`text-lg md:text-xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-          发表评价
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                你的评分
-              </label>
-              {!isAuthed && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
-                }`}>
-                  游客模式 (评分权重 0.2)
-                </span>
-              )}
-            </div>
-            <div className={`p-4 rounded-2xl inline-block border ${
-              darkMode ? 'bg-slate-900/30 border-slate-800' : 'bg-slate-50/50 border-slate-100'
-            }`}>
-              <StarRating
-                rating={userRating}
-                onRatingChange={setUserRating}
-                interactive={true}
-                size={32}
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className={`text-base md:text-lg font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+              发表评价
+            </h2>
+            {!isAuthed && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
+                darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+              }`}>
+                游客模式 (评分权重 0.2)
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              你的评分
+            </span>
+            <StarRating
+              rating={userRating}
+              onRatingChange={setUserRating}
+              interactive={true}
+              size={26}
+            />
           </div>
 
           {isAuthed ? (
             <>
-              <div className="space-y-3">
-                <label className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                  文字评价
-                </label>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className={`w-16 h-16 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${
+                    darkMode ? 'border-slate-700 hover:border-slate-600 bg-slate-900/30' : 'border-slate-300 hover:border-slate-400 bg-slate-50'
+                  } ${(uploading || imageUrls.length >= 5) ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={uploading || imageUrls.length >= 5}
+                      className="hidden"
+                    />
+                    {uploading ? (
+                      <Loader2 className="animate-spin text-blue-500" size={16} />
+                    ) : (
+                      <ImageIcon className={darkMode ? 'text-slate-400' : 'text-slate-500'} size={18} />
+                    )}
+                  </label>
+                  {imageUrls.map((url, idx) => (
+                    <div key={`${url}-${idx}`} className={`relative w-16 h-16 rounded-lg overflow-hidden border ${
+                      darkMode ? 'border-slate-700' : 'border-slate-200'
+                    }`}>
+                      <img src={url} className="w-full h-full object-cover" 
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://placehold.co/100x100?text=Error';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrls((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className={`text-[11px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  最多添加 5 张图片（当前 {imageUrls.length}/5）
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="分享你的真实体验..."
-                  className={`w-full p-4 rounded-2xl outline-none border transition-all h-32 resize-none ${
+                  className={`w-full p-3 rounded-xl outline-none border transition-all h-24 resize-none text-sm ${
                     darkMode
                       ? 'bg-slate-900/40 border-slate-700 text-slate-200 focus:border-blue-500'
                       : 'bg-white border-slate-200 text-slate-800 focus:border-blue-500 shadow-inner'
                   }`}
                 />
               </div>
-
-              <div className="space-y-3">
-                <label className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                  图片评价 (可选)
-                </label>
-                <div className="flex gap-4 items-center">
-                  <div className={`flex-1 relative group cursor-pointer border-2 border-dashed rounded-2xl transition-all ${
-                    imageUrl 
-                      ? 'border-blue-500/50 bg-blue-500/5' 
-                      : darkMode ? 'border-slate-700 hover:border-slate-600' : 'border-slate-200 hover:border-slate-300'
-                  }`}>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                    />
-                    <div className="py-6 flex flex-col items-center gap-2">
-                      {uploading ? (
-                        <Loader2 className="animate-spin text-blue-500" />
-                      ) : imageUrl ? (
-                        <div className="w-full px-4 text-center truncate text-blue-500 text-sm font-medium">点击更换图片</div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2">
-                          <ImageIcon className="text-slate-400" size={24} />
-                          <span className="text-xs text-slate-500">点击上传图片</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {imageUrl && (
-                    <div className={`w-20 h-20 rounded-xl overflow-hidden border ${
-                      darkMode ? 'border-slate-700' : 'border-slate-200'
-                    }`}>
-                      <img src={imageUrl} className="w-full h-full object-cover" 
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'https://placehold.co/100x100?text=Error';
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-                {/* 依然保留 URL 输入框，以防万一 */}
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="或输入图片 URL..."
-                  className={`w-full p-3 rounded-xl text-xs outline-none border transition-all ${
-                    darkMode
-                      ? 'bg-slate-900/20 border-slate-700 text-slate-400 focus:border-blue-500'
-                      : 'bg-slate-50 border-slate-200 text-slate-500 focus:border-blue-500'
-                  }`}
-                />
-              </div>
             </>
           ) : (
-            <div className={`p-6 rounded-2xl border border-dashed text-center space-y-2 ${
+            <div className={`p-4 rounded-xl border border-dashed text-center space-y-1.5 ${
               darkMode ? 'bg-slate-900/20 border-slate-700' : 'bg-slate-50 border-slate-200'
             }`}>
-              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 游客仅支持数值评分，登录后可发表文字评价与图片。
               </p>
               <button 
                 type="button"
                 onClick={() => onNavigate?.('login')}
-                className="text-sm font-bold text-blue-500 hover:underline"
+                className="text-xs font-bold text-blue-500 hover:underline"
               >
                 立即登录
               </button>
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-sm text-red-500 font-medium">{error}</div>
+          <div className="flex items-center justify-between gap-3">
             <button
               type="submit"
               disabled={submitting}
-              className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
                 darkMode
                   ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
                   : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'

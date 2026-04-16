@@ -4,6 +4,7 @@ import prisma from '../lib/prisma.js';
 import { sendVerificationEmail, sendResetPasswordEmail } from '../lib/email.js';
 import { toUserProgress } from '../lib/experience.js';
 import { uploadToQiniu, PREFIX_ASSETS, getSignedUrl, deleteFile } from '../lib/qiniu.js';
+import { findSensitiveWord } from '../lib/sensitiveFilter.js';
 
 // 简单内存存储验证码 (生产环境建议使用 Redis 或 数据库)
 const verificationCodes = new Map();
@@ -72,6 +73,12 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: '用户名、密码、邮箱和验证码均为必填项' });
     }
 
+    const normalizedUsername = String(username).trim();
+    const matchedWord = findSensitiveWord(normalizedUsername);
+    if (matchedWord) {
+      return res.status(400).json({ message: '用户名包含敏感词，请修改后重试' });
+    }
+
     // 验证码校验
     const stored = verificationCodes.get(email);
     if (!stored || stored.code !== code) {
@@ -97,7 +104,7 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: '密码必须至少为8位，且包含字母和数字' });
     }
 
-    const existingByUsername = await prisma.user.findUnique({ where: { username } });
+    const existingByUsername = await prisma.user.findUnique({ where: { username: normalizedUsername } });
     if (existingByUsername) {
       return res.status(409).json({ message: '用户名已存在' });
     }
@@ -110,7 +117,7 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
-      data: { username, password: hashedPassword, email },
+      data: { username: normalizedUsername, password: hashedPassword, email },
       select: { id: true, username: true, email: true, role: true, experience: true, avatarKey: true, createdAt: true },
     });
 
@@ -222,6 +229,11 @@ export const updateProfile = async (req, res) => {
     const userId = req.user.id;
     const username = String(req.body?.username || '').trim();
     if (!username) return res.status(400).json({ message: '用户名不能为空' });
+
+    const matchedWord = findSensitiveWord(username);
+    if (matchedWord) {
+      return res.status(400).json({ message: '用户名包含敏感词，请修改后重试' });
+    }
 
     const exists = await prisma.user.findFirst({
       where: { username, NOT: { id: userId } },

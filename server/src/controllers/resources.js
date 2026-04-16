@@ -352,9 +352,14 @@ export const uploadResources = async (req, res) => {
         const originalName = decodeMultipartText(f.originalname);
         const defaultTitle = String(originalName).replace(/\.[^/.]+$/, '');
         const title = t ? String(t) : defaultTitle;
-        const normalizedPath = p
+        const normalizedCourse = String(course).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+        const normalizedPathRaw = p
           ? String(p).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
           : String(originalName);
+        const pathParts = normalizedPathRaw.split('/').filter(Boolean);
+        const normalizedPath = pathParts.length > 1 && pathParts[0] === normalizedCourse
+          ? pathParts.slice(1).join('/')
+          : normalizedPathRaw;
         
         // 上传到七牛云 (初始进入待审核目录 pending/)
         const { url: fileUrl, name: fileKey } = await uploadToQiniu(f.buffer, originalName, PREFIX_PENDING, course, f.mimetype);

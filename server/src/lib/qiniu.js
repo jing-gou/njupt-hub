@@ -75,13 +75,15 @@ export const moveFile = async (srcKey, destKey) => {
     bucketManager.move(bucket, srcKey, bucket, destKey, { force: true }, (err, respBody, respInfo) => {
       if (err) {
         reject(err);
-      } else if (respInfo.statusCode === 200) {
+      } else if (respInfo?.statusCode === 200) {
         resolve({
           url: `${protocol}://${domain}/${destKey}`,
           name: destKey
         });
       } else {
-        reject(new Error(`Qiniu move failed with status ${respInfo.statusCode}: ${respBody.error}`));
+        const statusCode = respInfo?.statusCode ?? 'unknown';
+        const errorMessage = respBody?.error || respInfo?.data?.error || 'unknown error';
+        reject(new Error(`Qiniu move failed with status ${statusCode}: ${errorMessage}`));
       }
     });
   });
@@ -168,10 +170,12 @@ export const deleteFile = async (fileKey) => {
     bucketManager.delete(bucket, fileKey, (err, respBody, respInfo) => {
       if (err) {
         reject(err);
-      } else if (respInfo.statusCode === 200) {
+      } else if (respInfo?.statusCode === 200) {
         resolve(true);
       } else {
-        reject(new Error(`Qiniu delete failed with status ${respInfo.statusCode}: ${respBody.error}`));
+        const statusCode = respInfo?.statusCode ?? 'unknown';
+        const errorMessage = respBody?.error || respInfo?.data?.error || 'unknown error';
+        reject(new Error(`Qiniu delete failed with status ${statusCode}: ${errorMessage}`));
       }
     });
   });

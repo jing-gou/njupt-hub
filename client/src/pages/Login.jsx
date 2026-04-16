@@ -34,8 +34,8 @@ export default function Login({ onSuccess, onGoRegister, onGoForgotPassword }) {
   };
 
   return (
-    <div className={`min-h-[calc(100vh-180px)] flex items-center justify-center p-4 transition-colors duration-500 ${darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300'}`}>
-      <div className={`absolute inset-0 overflow-hidden pointer-events-none ${darkMode ? 'opacity-30' : ''}`}>
+    <div className={`relative w-full min-h-[calc(100dvh-73px)] flex items-center justify-center p-4 transition-colors duration-500 overflow-hidden ${darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300'}`}>
+      <div className={`absolute -inset-40 overflow-hidden pointer-events-none ${darkMode ? 'opacity-30' : ''}`}>
         <div className={`absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl ${darkMode ? 'bg-blue-500/20' : 'bg-blue-400/30'}`}></div>
         <div className={`absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl ${darkMode ? 'bg-purple-500/20' : 'bg-purple-400/30'}`}></div>
       </div>

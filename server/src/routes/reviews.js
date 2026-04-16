@@ -13,6 +13,9 @@ import {
   dismissReport,
   uploadReviewImage,
   createReviewItem,
+  updateReviewItemByAdmin,
+  deleteReviewItemByAdmin,
+  uploadReviewItemImageByAdmin,
   getPendingReviews,
   updateReviewStatusByAdmin,
   updateOwnReview,
@@ -38,6 +41,9 @@ router.get('/admin/pending-reviews', requireAuth, requireRole('ADMIN', 'DEV'), g
 router.patch('/admin/reviews/:reviewId/status', requireAuth, requireRole('ADMIN', 'DEV'), updateReviewStatusByAdmin);
 router.delete('/admin/reviews/:reviewId', requireAuth, requireRole('ADMIN', 'DEV'), deleteReviewByAdmin);
 router.delete('/admin/reports/:reportId', requireAuth, requireRole('ADMIN', 'DEV'), dismissReport);
+router.patch('/admin/items/:id', requireAuth, requireRole('ADMIN', 'DEV'), updateReviewItemByAdmin);
+router.delete('/admin/items/:id', requireAuth, requireRole('ADMIN', 'DEV'), deleteReviewItemByAdmin);
+router.post('/admin/items/:id/image', requireAuth, requireRole('ADMIN', 'DEV'), upload.single('image'), uploadReviewItemImageByAdmin);
 router.post('/items', requireAuth, createReviewItem);
 
 router.get('/items', getReviewItems);

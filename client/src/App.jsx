@@ -11,10 +11,30 @@ import ForgotPassword from './pages/ForgotPassword';
 import ReviewPage from './pages/ReviewPage';
 import ModerationPage from './pages/ModerationPage';
 import Leaderboard from './pages/Leaderboard';
-import { Search, Upload as UploadIcon, LogIn, CircleUserRound, MessageSquareText, ShieldAlert } from 'lucide-react';
+import { Search, Upload as UploadIcon, LogIn, CircleUserRound, MessageSquareText, ShieldAlert, RefreshCw } from 'lucide-react';
 import Footer from './components/Footer';
 import Maintenance from './pages/Maintenance';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+
+function UmamiAnalytics() {
+  useEffect(() => {
+    const scriptUrl = String(import.meta.env.VITE_UMAMI_SCRIPT_URL || '').trim();
+    const websiteId = String(import.meta.env.VITE_UMAMI_WEBSITE_ID || '').trim();
+    if (!scriptUrl || !websiteId) return;
+    if (document.querySelector('script[data-umami="true"]')) return;
+
+    const script = document.createElement('script');
+    script.src = scriptUrl;
+    script.async = true;
+    script.defer = true;
+    script.setAttribute('data-website-id', websiteId);
+    script.setAttribute('data-umami', 'true');
+    script.setAttribute('data-auto-track', 'true');
+    document.head.appendChild(script);
+  }, []);
+
+  return null;
+}
 
 
 
@@ -33,6 +53,77 @@ function AppContent() {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'DEV';
   const [isMobileNavCollapsed, setIsMobileNavCollapsed] = useState(false);
   const lastScrollYRef = useRef(0);
+
+  const normalizePageId = (value) => {
+    const v = String(value || '').trim().toLowerCase();
+    const allowed = new Set([
+      'home',
+      'reviews',
+      'upload',
+      'leaderboard',
+      'moderation',
+      'login',
+      'register',
+      'forgot-password',
+      'profile',
+    ]);
+    return allowed.has(v) ? v : 'home';
+  };
+
+  const getPageFromHash = () => {
+    const raw = String(window.location.hash || '');
+    const cleaned = raw.replace(/^#\/?/, '').trim();
+    if (!cleaned) return 'home';
+    const page = cleaned.split('/')[0];
+    return normalizePageId(page);
+  };
+
+  const navigate = (page, opts = {}) => {
+    const next = normalizePageId(page);
+
+    // 权限保护：非管理员访问 moderation 直接回到 home
+    const finalPage = next === 'moderation' && !isAdmin ? 'home' : next;
+    const nextHash = `#/${finalPage}`;
+
+    if (opts?.replace) {
+      window.history.replaceState(null, '', nextHash);
+      setCurrentPage(finalPage);
+      return;
+    }
+
+    // hash 变化会自动写入 history，Android 返回键可回退
+    if (window.location.hash !== nextHash) {
+      window.location.hash = nextHash;
+    } else {
+      setCurrentPage(finalPage);
+    }
+  };
+
+  // 初始化 + 监听 hash 变化，让 Android 返回键生效
+  useEffect(() => {
+    const init = () => {
+      const page = getPageFromHash();
+      if (!window.location.hash) {
+        // 首次进入没有 hash：用 replace 避免额外 history 条目
+        window.history.replaceState(null, '', `#/${page}`);
+      }
+      setCurrentPage(page);
+    };
+
+    const onHashChange = () => {
+      const page = getPageFromHash();
+      // 权限保护（从历史回退也要管）
+      if (page === 'moderation' && !isAdmin) {
+        navigate('home', { replace: true });
+        return;
+      }
+      setCurrentPage(page);
+    };
+
+    init();
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [isAdmin]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
@@ -145,7 +236,7 @@ if (isUnderMaintenance && isMobile()) {
             darkMode ? 'bg-slate-800' : 'bg-slate-100'
           }`}>
             <button
-              onClick={() => setCurrentPage('home')}
+              onClick={() => navigate('home')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all transform hover:scale-105 active:scale-95 ${
                 currentPage === 'home'
                   ? darkMode
@@ -160,7 +251,7 @@ if (isUnderMaintenance && isMobile()) {
               查找
             </button>
             <button
-              onClick={() => setCurrentPage('reviews')}
+              onClick={() => navigate('reviews')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all transform hover:scale-105 active:scale-95 ${
                 currentPage === 'reviews'
                   ? darkMode
@@ -175,7 +266,7 @@ if (isUnderMaintenance && isMobile()) {
               评价
             </button>
             <button
-              onClick={() => setCurrentPage('upload')}
+              onClick={() => navigate('upload')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all transform hover:scale-105 active:scale-95 ${
                 currentPage === 'upload'
                   ? darkMode
@@ -191,7 +282,7 @@ if (isUnderMaintenance && isMobile()) {
             </button>
             {isAdmin && (
               <button
-                onClick={() => setCurrentPage('moderation')}
+                onClick={() => navigate('moderation')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all transform hover:scale-105 active:scale-95 ${
                   currentPage === 'moderation'
                     ? darkMode
@@ -207,7 +298,7 @@ if (isUnderMaintenance && isMobile()) {
               </button>
             )}
             <button
-              onClick={() => setCurrentPage(isAuthed ? 'profile' : 'login')}
+              onClick={() => navigate(isAuthed ? 'profile' : 'login')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all transform hover:scale-105 active:scale-95 ${
                 currentPage === 'login' || currentPage === 'profile' || currentPage === 'register' || currentPage === 'forgot-password'
                   ? darkMode
@@ -242,36 +333,31 @@ if (isUnderMaintenance && isMobile()) {
       {/* 页面内容 */}
       <main className="min-h-[calc(100vh-73px)] pb-0 md:pb-0">
         {currentPage === 'home' ? (
-          <Home onNavigate={setCurrentPage} />
+          <Home onNavigate={navigate} />
         ) : currentPage === 'reviews' ? (
           <ReviewPage />
         ) : currentPage === 'upload' ? (
-          <Upload onNavigate={setCurrentPage} />
+          <Upload onNavigate={navigate} />
         ) : currentPage === 'leaderboard' ? (
-          <Leaderboard onBack={() => setCurrentPage('home')} />
+          <Leaderboard onBack={() => window.history.back()} />
         ) : currentPage === 'moderation' && isAdmin ? (
           <ModerationPage />
         ) : currentPage === 'login' ? (
           <Login 
-            onSuccess={() => setCurrentPage('profile')} 
-            onGoRegister={() => setCurrentPage('register')} 
-            onGoForgotPassword={() => setCurrentPage('forgot-password')}
+            onSuccess={() => navigate('profile', { replace: true })} 
+            onGoRegister={() => navigate('register')} 
+            onGoForgotPassword={() => navigate('forgot-password')}
           />
         ) : currentPage === 'register' ? (
-          <Register onGoLogin={() => setCurrentPage('login')} onSuccess={() => setCurrentPage('profile')} />
+          <Register onGoLogin={() => navigate('login')} onSuccess={() => navigate('profile', { replace: true })} />
         ) : currentPage === 'forgot-password' ? (
-          <ForgotPassword onGoBack={() => setCurrentPage('login')} onSuccess={() => setCurrentPage('login')} />
+          <ForgotPassword onGoBack={() => window.history.back()} onSuccess={() => navigate('login', { replace: true })} />
         ) : (
-          <Profile onGoLogin={() => setCurrentPage('login')} />
+          <Profile onGoLogin={() => navigate('login')} />
         )}
       </main>
 
       <Footer darkMode={darkMode} />
-
-      <main>
-        <div className="h-16 md:hidden"></div>  
-      </main>
-
 
       {/* 移动端底部导航栏 */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t px-2 pb-safe transition-colors ${
@@ -285,13 +371,21 @@ if (isUnderMaintenance && isMobile()) {
             ...(isAdmin ? [{ id: 'moderation', icon: ShieldAlert, label: '审核' }] : []),
             { id: isAuthed ? 'profile' : 'login', icon: CircleUserRound, label: isAuthed ? '我' : '登录' }
           ].map((item) => {
-            const Icon = item.icon;
+            const isHomeActive = item.id === 'home' && currentPage === 'home';
+            const Icon = isHomeActive ? RefreshCw : item.icon;
+            const label = isHomeActive ? '刷新' : item.label;
             const isActive = currentPage === item.id || 
                             (item.id === 'login' && (currentPage === 'register' || currentPage === 'forgot-password'));
             return (
               <button
                 key={item.id}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  if (item.id === 'home' && currentPage === 'home') {
+                    window.dispatchEvent(new Event('njupt-hub:refresh-home-cache'));
+                    return;
+                  }
+                  navigate(item.id);
+                }}
                 className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all transform active:scale-90 ${
                   isActive 
                     ? 'text-blue-500 scale-110 font-bold' 
@@ -301,7 +395,7 @@ if (isUnderMaintenance && isMobile()) {
                 <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-blue-500/10' : ''}`}>
                   <Icon size={22} className={isActive ? 'stroke-[2.5px]' : ''} />
                 </div>
-                <span className="text-[10px]">{item.label}</span>
+                <span className="text-[10px]">{label}</span>
               </button>
             );
           })}
@@ -319,6 +413,7 @@ export default function App() {
       <AuthProvider>
         <Toaster position="top-center" reverseOrder={false} />
         <AppContent />
+        <UmamiAnalytics />
       </AuthProvider>
     </ThemeProvider>
   );

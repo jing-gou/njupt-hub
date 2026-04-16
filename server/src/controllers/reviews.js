@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
-import { uploadToQiniu, PREFIX_ASSETS, getSignedUrl, normalizeStoredFileKey } from '../lib/qiniu.js';
+import { uploadToQiniu, PREFIX_ASSETS, getSignedUrl, normalizeStoredFileKey, deleteFile } from '../lib/qiniu.js';
 import { EXPERIENCE_REWARD } from '../lib/experience.js';
+import { findSensitiveWord } from '../lib/sensitiveFilter.js';
 
 const REVIEW_STATUS = {
   PENDING: 'PENDING',
@@ -255,10 +256,15 @@ export const createReply = async (req, res) => {
     const userId = req.user.id;
 
     if (!content) return res.status(400).json({ message: '内容是必填项' });
+    const normalizedContent = String(content).trim();
+    const matchedWord = findSensitiveWord(normalizedContent);
+    if (matchedWord) {
+      return res.status(400).json({ message: '评论内容包含敏感词，请修改后再提交' });
+    }
 
     const reply = await prisma.reply.create({
       data: {
-        content,
+        content: normalizedContent,
         userId,
         reviewId: parseInt(reviewId)
       },
@@ -323,6 +329,11 @@ export const createReview = async (req, res) => {
   try {
     const { itemId, rating, comment, imageUrl } = req.body;
     const normalizedImageKey = imageUrl ? normalizeStoredFileKey(imageUrl) : null;
+    const normalizedComment = comment === undefined || comment === null ? null : String(comment).trim();
+    const matchedWord = findSensitiveWord(normalizedComment || '');
+    if (matchedWord) {
+      return res.status(400).json({ message: '评价内容包含敏感词，请修改后再提交' });
+    }
     let reviewerId = req.user?.id; 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
@@ -391,7 +402,7 @@ export const createReview = async (req, res) => {
           where: { id: latestReview.id },
           data: {
             rating: parseFloat(rating),
-            comment: reviewerId === req.user?.id ? comment : null, // 游客不存评论
+            comment: reviewerId === req.user?.id ? normalizedComment : null, // 游客不存评论
             imageUrl: reviewerId === req.user?.id ? normalizedImageKey : null, // 游客不存图片
             status: nextStatus,
             ip: ip // 记录当前 IP
@@ -405,7 +416,7 @@ export const createReview = async (req, res) => {
         finalReview = await tx.review.create({
           data: {
             rating: parseFloat(rating),
-            comment: reviewerId === req.user?.id ? comment : null,
+            comment: reviewerId === req.user?.id ? normalizedComment : null,
             imageUrl: reviewerId === req.user?.id ? normalizedImageKey : null,
             status: nextStatus,
             reviewerId,
@@ -509,7 +520,14 @@ export const updateOwnReview = async (req, res) => {
 
     const updateData = {};
     if (rating !== undefined) updateData.rating = parseFloat(rating);
-    if (comment !== undefined) updateData.comment = comment;
+    if (comment !== undefined) {
+      const normalizedComment = String(comment || '').trim();
+      const matchedWord = findSensitiveWord(normalizedComment);
+      if (matchedWord) {
+        return res.status(400).json({ message: '评价内容包含敏感词，请修改后再提交' });
+      }
+      updateData.comment = normalizedComment;
+    }
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl ? normalizeStoredFileKey(imageUrl) : null;
 
     const needModeration = review.item.type === 'MENTOR' && (
@@ -659,5 +677,127 @@ export const createReviewItem = async (req, res) => {
   } catch (error) {
     console.error('Create review item error:', error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+// 修改评价项目 (管理员)
+export const updateReviewItemByAdmin = async (req, res) => {
+  try {
+    const id = Number.parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: '无效的项目 ID' });
+    }
+
+    const { title, description, imageUrl, location, college } = req.body ?? {};
+
+    const updateData = {};
+    if (title !== undefined) {
+      const nextTitle = String(title || '').trim();
+      if (!nextTitle) return res.status(400).json({ message: '标题不能为空' });
+      updateData.title = nextTitle;
+    }
+    if (description !== undefined) updateData.description = description ? String(description) : null;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl ? normalizeStoredFileKey(imageUrl) : null;
+    if (location !== undefined) updateData.location = location ? String(location) : null;
+    if (college !== undefined) updateData.college = college ? String(college) : null;
+
+    const updated = await prisma.reviewableItem.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return res.json({
+      ...updated,
+      imageUrl: getSignedUrl(updated.imageUrl),
+    });
+  } catch (error) {
+    if (error?.code === 'P2025') {
+      return res.status(404).json({ message: '项目未找到' });
+    }
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// 删除评价项目 (管理员)
+export const deleteReviewItemByAdmin = async (req, res) => {
+  try {
+    const id = Number.parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: '无效的项目 ID' });
+    }
+
+    const item = await prisma.reviewableItem.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!item) return res.status(404).json({ message: '项目未找到' });
+
+    await prisma.$transaction(async (tx) => {
+      const reviews = await tx.review.findMany({
+        where: { itemId: id },
+        select: { id: true },
+      });
+      const reviewIds = reviews.map((r) => r.id);
+
+      if (reviewIds.length > 0) {
+        await tx.like.deleteMany({ where: { reviewId: { in: reviewIds } } });
+        await tx.reply.deleteMany({ where: { reviewId: { in: reviewIds } } });
+        await tx.report.deleteMany({ where: { reviewId: { in: reviewIds } } });
+        await tx.review.deleteMany({ where: { id: { in: reviewIds } } });
+      }
+
+      await tx.reviewableItem.delete({ where: { id } });
+    });
+
+    return res.json({ message: '项目已删除' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// 上传并覆盖评价项目图片 (管理员)
+export const uploadReviewItemImageByAdmin = async (req, res) => {
+  try {
+    const id = Number.parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ message: '无效的项目 ID' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: '未上传文件' });
+    }
+
+    const item = await prisma.reviewableItem.findUnique({
+      where: { id },
+      select: { id: true, imageUrl: true },
+    });
+    if (!item) return res.status(404).json({ message: '项目未找到' });
+
+    // 上传新图（放到 assets/items 下）
+    const { name: newKey } = await uploadToQiniu(
+      req.file.buffer,
+      req.file.originalname,
+      PREFIX_ASSETS,
+      'items',
+      req.file.mimetype,
+    );
+
+    // 更新数据库（存 key）
+    const updated = await prisma.reviewableItem.update({
+      where: { id },
+      data: { imageUrl: newKey },
+    });
+
+    // 清理旧图（非必需，失败不影响主流程）
+    const oldKey = item.imageUrl ? normalizeStoredFileKey(item.imageUrl) : '';
+    if (oldKey && oldKey !== newKey) {
+      deleteFile(oldKey).catch(() => {});
+    }
+
+    return res.json({
+      message: '上传成功',
+      imageUrl: getSignedUrl(updated.imageUrl),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 };
