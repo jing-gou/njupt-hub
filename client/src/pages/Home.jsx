@@ -468,7 +468,7 @@ export default function Home({ onNavigate }) {
   if (loading) return (
     <div className={`min-h-screen flex flex-col items-center justify-center ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
       <Loader2 className="animate-spin mb-4 text-blue-500" size={40} />
-      <p>正在检索文件树...</p>
+      <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>正在检索文件树...</p>
     </div>
   );
   
