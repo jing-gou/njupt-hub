@@ -90,7 +90,7 @@ export default function ReviewCard({ item, onClick, darkMode }) {
                 e.currentTarget.src = getAvatarFallbackUrl(featuredReview.reviewer?.username, 24);
               }}
             />
-            <span className="text-[11px] opacity-70">— {featuredReview.reviewer?.username}</span>
+            <span className={`text-[11px] ${darkMode ? 'text-slate-300' : 'text-slate-500'} opacity-80`}>— {featuredReview.reviewer?.username}</span>
           </div>
         </div>
       )}
