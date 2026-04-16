@@ -238,6 +238,29 @@ if (isUnderMaintenance && isMobile()) {
    <div className={`min-h-screen flex flex-col transition-colors duration-500 ${
       darkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300'
     }`}>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          style: {
+            background: darkMode ? '#0f172a' : '#ffffff',
+            color: darkMode ? '#e2e8f0' : '#0f172a',
+            border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+          },
+          success: {
+            iconTheme: {
+              primary: darkMode ? '#34d399' : '#10b981',
+              secondary: darkMode ? '#0f172a' : '#ffffff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: darkMode ? '#fb7185' : '#ef4444',
+              secondary: darkMode ? '#0f172a' : '#ffffff',
+            },
+          },
+        }}
+      />
       {/* 顶部导航栏 */}
       <nav className={`fixed top-0 left-0 right-0 w-full z-40 backdrop-blur-lg border-b transition-colors ${
         darkMode 
@@ -438,7 +461,6 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Toaster position="top-center" reverseOrder={false} />
         <AppContent />
         <UmamiAnalytics />
       </AuthProvider>
