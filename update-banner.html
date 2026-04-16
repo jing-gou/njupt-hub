@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NJUPT Hub 更新通告</title>
+  <style>
+    :root {
+      --bg-start: #eff6ff;
+      --bg-mid: #ffffff;
+      --bg-end: #f5f3ff;
+      --blue: #2563eb;
+      --pink: #db2777;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+      --chip-bg: rgba(255, 255, 255, 0.9);
+      --card-bg: rgba(255, 255, 255, 0.78);
+      --card-border: rgba(148, 163, 184, 0.24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, var(--bg-start), var(--bg-mid), var(--bg-end));
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    .glow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .glow::before,
+    .glow::after {
+      content: "";
+      position: absolute;
+      border-radius: 9999px;
+      filter: blur(90px);
+    }
+
+    .glow::before {
+      width: 440px;
+      height: 440px;
+      left: 10%;
+      top: 2%;
+      background: rgba(59, 130, 246, 0.3);
+    }
+
+    .glow::after {
+      width: 400px;
+      height: 400px;
+      right: 12%;
+      top: 20%;
+      background: rgba(168, 85, 247, 0.25);
+    }
+
+    .wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card {
+      width: min(100%, 1080px);
+      border-radius: 28px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+      backdrop-filter: blur(8px);
+      padding: 54px 64px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-radius: 16px;
+      background: var(--chip-bg);
+      box-shadow: 0 10px 24px rgba(30, 64, 175, 0.16);
+      color: var(--blue);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .chip .icon {
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .title-row {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .title-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #3b82f6, #a855f7);
+      box-shadow: 0 12px 26px rgba(59, 130, 246, 0.35);
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(42px, 7.5vw, 72px);
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      background: linear-gradient(90deg, var(--blue), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .subtitle {
+      margin: 20px 0 0;
+      font-size: clamp(18px, 2.1vw, 28px);
+      color: var(--text-sub);
+      letter-spacing: 0.04em;
+    }
+
+    .tips {
+      margin-top: 28px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1px dashed rgba(59, 130, 246, 0.28);
+      color: #334155;
+      background: rgba(248, 250, 252, 0.82);
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow"></div>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="chip"><span class="icon">✨</span> UPDATE</div>
+
+      <div class="title-row">
+        <div class="title-icon">⬆</div>
+        <h1 class="title">NJUPT Hub 更新通告</h1>
+      </div>
+
+      <p class="subtitle">功能持续优化中，欢迎体验并反馈建议</p>
+
+      <div class="tips">可直接使用浏览器全屏截图，作为社交媒体头图。</div>
+    </section>
+  </main>
+</body>
+</html>

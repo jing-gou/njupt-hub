@@ -11,6 +11,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ReviewPage from './pages/ReviewPage';
 import ModerationPage from './pages/ModerationPage';
 import Leaderboard from './pages/Leaderboard';
+import WhatsNew from './pages/WhatsNew';
 import { Search, Upload as UploadIcon, LogIn, CircleUserRound, MessageSquareText, ShieldAlert, RefreshCw } from 'lucide-react';
 import Footer from './components/Footer';
 import Maintenance from './pages/Maintenance';
@@ -34,6 +35,22 @@ function UmamiAnalytics() {
   }, []);
 
   return null;
+}
+
+function trackUmamiPageView(url, title) {
+  if (typeof window === 'undefined') return;
+  const umami = window.umami;
+  if (!umami || typeof umami.track !== 'function') return;
+  umami.track(() => ({
+    url,
+    title,
+    website: String(import.meta.env.VITE_UMAMI_WEBSITE_ID || '').trim(),
+    hostname: window.location.hostname,
+    language: navigator.language,
+    screen: `${window.screen.width}x${window.screen.height}`,
+    referrer: document.referrer,
+    tag: 'spa',
+  }));
 }
 
 
@@ -62,6 +79,7 @@ function AppContent() {
       'upload',
       'leaderboard',
       'moderation',
+      'whatsnew',
       'login',
       'register',
       'forgot-password',
@@ -127,6 +145,13 @@ function AppContent() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
+  useEffect(() => {
+    const hashPath = window.location.hash || `#/${currentPage}`;
+    const title = `NJUPT Hub - ${currentPage}`;
+    const timer = window.setTimeout(() => trackUmamiPageView(hashPath, title), 300);
+    return () => window.clearTimeout(timer);
   }, [currentPage]);
 
   // 移动端：向下滑动时收缩顶部 sticky bar，向上滑/回到顶部时展开
@@ -342,6 +367,8 @@ if (isUnderMaintenance && isMobile()) {
           <Leaderboard onBack={() => window.history.back()} />
         ) : currentPage === 'moderation' && isAdmin ? (
           <ModerationPage />
+        ) : currentPage === 'whatsnew' ? (
+          <WhatsNew />
         ) : currentPage === 'login' ? (
           <Login 
             onSuccess={() => navigate('profile', { replace: true })} 

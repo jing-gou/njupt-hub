@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import resourcesRoutes from './routes/resources.js';
 import reviewsRoutes from './routes/reviews.js';
+import metaRoutes from './routes/meta.js';
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/uploads', express.static(uploadsDir));
 app.use('/api/auth', authRoutes);
 app.use('/api/resources', resourcesRoutes);
 app.use('/api/reviews', reviewsRoutes);
+app.use('/api/meta', metaRoutes);
 
 // 4. 基础健康检查（方便你测试后端是否活着）
 app.get('/health', (req, res) => {
