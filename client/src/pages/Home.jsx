@@ -541,7 +541,7 @@ export default function Home({ onNavigate }) {
                 </button>
                 
                 <a
-                  href="https://github.com/jing-gou/njupt-notes"
+                  href="https://github.com/jing-gou/njupt-hub"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`flex items-center gap-2 px-3 md:px-6 py-3 rounded-xl font-medium border transition-all duration-300 transform hover:scale-105 active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
