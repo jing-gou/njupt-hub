@@ -219,27 +219,7 @@ export default function Home() {
     }
     // 默认文件图标
     return <File {...iconProps} />;
-  };
-
-  // 解析文件路径为树形结构（支持无限层级）
-  const parseFileStructure = (files) => {
-    const structure = {};
-    
-    files.forEach(file => {
-      const parts = file.name.split(' / ');
-      
-      if (parts.length === 1) {
-        // 直接在课程根目录下的文件
-        if (!structure['根目录']) {
-          structure['根目录'] = { files: [], folders: {} };
-        }
-        structure['根目录'].files.push({ ...file, fileName: file.name });
-      } else {
-        // 递归构建树形结构
-        let current = structure;
-        
-        // 遍历除了最后一个元素（文件名）之外的所有部分
-        for (let i = 0; i < parts.length - 1; i++) {
+  };i++) {
           const folderName = parts[i];
           
           if (!current[folderName]) {
