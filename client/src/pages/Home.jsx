@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Folder, Eye, FileText, Download, ChevronRight, Loader2, Trophy, Search, Github, Filter, ChevronDown, FileImage, FileCode, FileSpreadsheet, FileVideo, FileAudio, Archive, File, X, RefreshCw } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { SiGithub } from '@icons-pack/react-simple-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 const base64EncodeUnicode = (str) => {
   return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
@@ -11,6 +12,9 @@ const base64EncodeUnicode = (str) => {
 
 export default function Home({ onNavigate }) {
   const { darkMode } = useTheme();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [resources, setResources] = useState({});
   const [loading, setLoading] = useState(true);
   const [openFolders, setOpenFolders] = useState({});
@@ -22,10 +26,8 @@ export default function Home({ onNavigate }) {
   const isPDF = (fileName) => /\.pdf$/i.test(fileName);
   const [activePreview, setActivePreview] = useState(null);
   const isPreviewAllowed = false;
-
   const FILE_TREE_CACHE_KEY = 'njupt_hub:file_tree_cache:v1';
   const FILE_TREE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 分钟
-
   
   // 搜索联动状态
   const [isSearching, setIsSearching] = useState(false);
@@ -512,6 +514,70 @@ export default function Home({ onNavigate }) {
                   />
                 </div>
               </div>
+
+{/* ================= 专属功能区 开始 ================= */}
+<div className="mb-6 space-y-4">
+  
+  {/* 1. 📢 网站公告栏 */}
+  <div className={`rounded-xl border p-4 transition-all ${
+    darkMode 
+      ? 'border-white bg-black hover:bg-gray-900' // 黑色模式：白边黑底
+      : 'border-gray-950 bg-white hover:bg-gray-50' // 白色模式：黑边白底
+  }`}>
+    <div className="flex items-start space-x-3">
+      <span className="text-xl">📢</span>
+      <div>
+        <h3 className={`text-md font-bold ${darkMode ? 'text-white' : 'text-gray-950'}`}>
+          NJUPT Hub 内测上线啦！
+        </h3>
+        <p className={`mt-1 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+          欢迎大家来到南邮资料共享站！请大家在上传文件前，先下载并查看下方的“笔记上传模板”规范。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {/* 2. 📌 置顶模板栏 */}
+  <div className={`flex items-center justify-between rounded-xl border p-4 transition-all cursor-pointer ${
+    darkMode 
+      ? 'border-white bg-black hover:bg-gray-900' 
+      : 'border-gray-950 bg-white hover:bg-gray-50'
+  }`}>
+    <div className="flex items-center space-x-3">
+      {/* 图标颜色随 darkMode 切换 */}
+      <svg className={`h-6 w-6 ${darkMode ? 'text-white' : 'text-gray-950'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+      </svg>
+      
+      <span className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-950'}`}>
+        笔记上传模板
+      </span>
+      
+      {/* 置顶标签：黑白反转 */}
+      <span className={`rounded-md px-2 py-0.5 text-xs font-bold shadow-sm ${
+        darkMode ? 'bg-white text-black' : 'bg-gray-950 text-white'
+      }`}>
+        📌 置顶
+      </span>
+    </div>
+    
+    {/* 右侧操作区 */}
+    <div className={`flex items-center space-x-4 text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-950'}`}>
+      <span className="hover:underline">点击下载规范</span>
+      
+      {isAdmin && (
+        <>
+          <span className={darkMode ? 'text-gray-700' : 'text-gray-300'}>|</span>
+          <button className="hover:underline transition-colors">
+            ✎ 修改
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+
+</div>
+{/* ================= 专属功能区 结束 ================= */}
 
               <div className={`flex flex-wrap justify-center gap-3 mb-4 transition-all duration-500 relative z-20 ${isSearching ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 <div className="relative z-[90]">
