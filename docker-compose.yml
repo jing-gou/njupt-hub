@@ -60,5 +60,17 @@ services:
     depends_on:
       - db
 
+  webdav:
+    image: bytemark/webdav
+    restart: always
+    ports:
+      - "3004:80"
+    environment:
+      - AUTH_TYPE=Digest
+      - USERNAME=${WEBDAV_USERNAME}
+      - PASSWORD=${WEBDAV_PASSWORD}
+    volumes:
+      - webdav_data:/var/lib/dav
 volumes:
   mysql_data:
+  webdav_data:
