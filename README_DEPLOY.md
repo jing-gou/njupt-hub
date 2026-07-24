@@ -14,7 +14,8 @@
   - `DATABASE_URL`: 数据库连接字符串，默认使用 Docker 网络内的 `db` 服务。
   - `JWT_SECRET`: 用于生成 Token 的密钥，建议修改。
   - `QINIU_*`: 七牛云存储配置。
-  - `SMTP_*`: 邮件通知服务配置。
+  - `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE`: SMTP 服务器地址、端口与 TLS 模式。端口 465 通常使用 `SMTP_SECURE=true`，587 通常使用 `false`。
+  - `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM`: 邮件服务账号、授权凭据与发件人。
 
 ### 3. 启动部署
 在项目根目录下执行以下命令：

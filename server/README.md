@@ -8,6 +8,15 @@ Required:
 
 - `DATABASE_URL`
 - `JWT_SECRET`
+- `SMTP_HOST`
+- `SMTP_USER`
+- `SMTP_PASS`
+
+Email options:
+
+- `SMTP_PORT` (default `465`)
+- `SMTP_SECURE` (defaults to `true` for port `465`)
+- `SMTP_FROM` (defaults to `SMTP_USER`)
 
 Optional:
 
