@@ -349,6 +349,8 @@ export default function BatchUpload({ onNavigate }) {
     setUploading(true);
 
     let anySuccess = false;
+    let failedCount = 0;
+    const uploadedResources = [];
     for (const fileItem of files) {
       if (fileItem.status === 'success') continue; // 跳过已成功的
 
@@ -358,7 +360,8 @@ export default function BatchUpload({ onNavigate }) {
       ));
 
       try {
-        await uploadSingleFile(fileItem);
+        const createdItems = await uploadSingleFile(fileItem);
+        uploadedResources.push(...createdItems);
         anySuccess = true;
         
         // 上传成功
@@ -366,6 +369,7 @@ export default function BatchUpload({ onNavigate }) {
           f.id === fileItem.id ? { ...f, status: 'success', progress: 100 } : f
         ));
       } catch (error) {
+        failedCount += 1;
         // 上传失败
         setFiles(prev => prev.map(f => 
           f.id === fileItem.id ? { ...f, status: 'error', error: error.message } : f
@@ -382,15 +386,28 @@ export default function BatchUpload({ onNavigate }) {
         // ignore
       }
     }
-    
-    const finalStats = {
-      success: files.filter(f => f.status === 'success').length,
-      error: files.filter(f => f.status === 'error').length
-    };
-    
-    if (finalStats.error > 0) {
-      toast.error(`部分文件上传失败 (${finalStats.error} 个)`);
-    } else if (finalStats.success > 0) {
+
+    if (isAuthed && uploadedResources.length > 0) {
+      const resourceIds = uploadedResources.map((resource) => resource.id).filter(Boolean);
+      fetch('/api/resources/upload/thank-you', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ resourceIds }),
+      }).then(async (response) => {
+        if (response.ok) return;
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.message || `感谢邮件发送失败 (${response.status})`);
+      }).catch((error) => {
+        console.warn('Upload thank-you email request failed:', error);
+      });
+    }
+
+    if (failedCount > 0) {
+      toast.error(`部分文件上传失败 (${failedCount} 个)`);
+    } else if (uploadedResources.length > 0) {
       toast.success('全部上传成功，请等待审核');
     }
   };
@@ -445,7 +462,7 @@ export default function BatchUpload({ onNavigate }) {
             throw new Error(data?.message || data?.error || `上传失败 (${response.status})`);
           }
           setFiles(prev => prev.map(f => (f.id === fileItem.id ? { ...f, progress: 100 } : f)));
-          resolve();
+          resolve(Array.isArray(data?.items) ? data.items : []);
         })
         .catch((err) => {
           reject(err instanceof Error ? err : new Error('网络请求失败'));

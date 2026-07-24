@@ -11,7 +11,6 @@ import ForgotPassword from './pages/ForgotPassword';
 import ReviewPage from './pages/ReviewPage';
 import ModerationPage from './pages/ModerationPage';
 import Leaderboard from './pages/Leaderboard';
-import WhatsNew from './pages/WhatsNew';
 import { Search, Upload as UploadIcon, LogIn, CircleUserRound, MessageSquareText, ShieldAlert, RefreshCw } from 'lucide-react';
 import Footer from './components/Footer';
 import Maintenance from './pages/Maintenance';
@@ -79,7 +78,6 @@ function AppContent() {
       'upload',
       'leaderboard',
       'moderation',
-      'whatsnew',
       'login',
       'register',
       'forgot-password',
@@ -390,8 +388,6 @@ if (isUnderMaintenance && isMobile()) {
           <Leaderboard onBack={() => window.history.back()} />
         ) : currentPage === 'moderation' && isAdmin ? (
           <ModerationPage />
-        ) : currentPage === 'whatsnew' ? (
-          <WhatsNew />
         ) : currentPage === 'login' ? (
           <Login 
             onSuccess={() => navigate('profile', { replace: true })} 

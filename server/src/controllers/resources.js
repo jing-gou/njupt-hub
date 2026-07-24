@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { uploadToQiniu, getSignedUrl, moveFile, deleteFile, PREFIX_PENDING, PREFIX_PUBLIC, normalizeStoredFileKey } from '../lib/qiniu.js';
 import { EXPERIENCE_REWARD } from '../lib/experience.js';
+import { sendResourceReviewResultEmail, sendUploadThankYouEmail } from '../lib/email.js';
 
 const parseIntOr = (value, fallback) => {
   const parsed = Number.parseInt(String(value), 10);
@@ -15,6 +16,56 @@ const decodeMultipartText = (value) => {
     return decoded;
   } catch {
     return raw;
+  }
+};
+
+const maybeSendResourceReviewResultEmail = async ({ resource, status }) => {
+  if (!resource?.uploaderId || !['APPROVED', 'REJECTED'].includes(status)) {
+    return;
+  }
+
+  const shouldSend =
+    resource.reviewResultEmailStatus !== status
+    || !resource.reviewResultEmailSentAt;
+  if (!shouldSend) {
+    return;
+  }
+
+  const uploader = await prisma.user.findUnique({
+    where: { id: resource.uploaderId },
+    select: { id: true, username: true, email: true },
+  });
+
+  if (!uploader || !uploader.email || uploader.username === '游客') {
+    return;
+  }
+
+  try {
+    await sendResourceReviewResultEmail({
+      to: uploader.email,
+      username: uploader.username,
+      resource: {
+        title: resource.title,
+        fileName: resource.fileName,
+        course: resource.course,
+        status,
+      },
+    });
+
+    await prisma.resource.update({
+      where: { id: resource.id },
+      data: {
+        reviewResultEmailSentAt: new Date(),
+        reviewResultEmailStatus: status,
+      },
+    });
+  } catch (error) {
+    console.error('Send resource review result email error:', {
+      resourceId: resource.id,
+      uploaderId: resource.uploaderId,
+      status,
+      message: error?.message,
+    });
   }
 };
 
@@ -151,7 +202,18 @@ export const updateResourceStatus = async (req, res) => {
 
     const resource = await prisma.resource.findUnique({
       where: { id },
-      select: { id: true, status: true, fileKey: true, fileUrl: true, uploaderId: true },
+      select: {
+        id: true,
+        title: true,
+        course: true,
+        fileName: true,
+        status: true,
+        fileKey: true,
+        fileUrl: true,
+        uploaderId: true,
+        reviewResultEmailSentAt: true,
+        reviewResultEmailStatus: true,
+      },
     });
     if (!resource) {
       return res.status(404).json({ message: '资源未找到' });
@@ -201,6 +263,8 @@ export const updateResourceStatus = async (req, res) => {
       }
       return next;
     });
+
+    await maybeSendResourceReviewResultEmail({ resource, status: String(status) });
 
     return res.status(200).json({
       ...updated,
@@ -417,5 +481,71 @@ export const uploadResources = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
+  }
+};
+
+export const sendUploadThankYou = async (req, res) => {
+  const uploaderId = req.user?.id;
+  const rawIds = Array.isArray(req.body?.resourceIds) ? req.body.resourceIds : [];
+  const resourceIds = [...new Set(rawIds.map(Number).filter(Number.isInteger))].slice(0, 100);
+
+  if (!uploaderId) {
+    return res.status(401).json({ message: '请先登录' });
+  }
+  if (resourceIds.length === 0) {
+    return res.status(400).json({ message: '没有可发送通知的资料' });
+  }
+
+  try {
+    const [uploader, resources] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: uploaderId },
+        select: { username: true, email: true },
+      }),
+      prisma.resource.findMany({
+        where: {
+          id: { in: resourceIds },
+          uploaderId,
+          thankYouEmailSentAt: null,
+        },
+        select: { id: true, title: true, fileName: true, course: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+
+    if (!uploader) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    if (resources.length === 0) {
+      return res.status(200).json({ message: '感谢邮件已发送，无需重复发送', emailSent: false });
+    }
+
+    await sendUploadThankYouEmail({
+      to: uploader.email,
+      username: uploader.username,
+      resources,
+    });
+
+    await prisma.resource.updateMany({
+      where: {
+        id: { in: resources.map((resource) => resource.id) },
+        uploaderId,
+        thankYouEmailSentAt: null,
+      },
+      data: { thankYouEmailSentAt: new Date() },
+    });
+
+    return res.status(200).json({
+      message: '感谢邮件已发送',
+      emailSent: true,
+      resourceCount: resources.length,
+    });
+  } catch (error) {
+    console.error('Send upload thank-you email error:', {
+      uploaderId,
+      resourceIds,
+      message: error?.message,
+    });
+    return res.status(502).json({ message: '资料上传成功，但感谢邮件暂时发送失败' });
   }
 };

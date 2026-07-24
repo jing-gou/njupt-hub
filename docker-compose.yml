@@ -25,8 +25,20 @@ services:
       dockerfile: Dockerfile
     restart: always
     environment:
-      # 直接引用 .env 中的连接字符串
       DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_SECURE: "${SMTP_SECURE:-true}"
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      QINIU_ACCESS_KEY: ${QINIU_ACCESS_KEY}
+      QINIU_SECRET_KEY: ${QINIU_SECRET_KEY}
+      QINIU_BUCKET: ${QINIU_BUCKET}
+      QINIU_DOMAIN: ${QINIU_DOMAIN}
+      QINIU_PROTOCOL: "${QINIU_PROTOCOL:-https}"
+      QINIU_IS_PRIVATE: "${QINIU_IS_PRIVATE:-false}"
     ports:
       - "3001:3000"
     depends_on:

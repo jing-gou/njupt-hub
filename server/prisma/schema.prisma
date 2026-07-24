@@ -38,6 +38,9 @@ model Resource {
   fileName      String?
   fileSize      Int?
   mimeType      String?
+  thankYouEmailSentAt DateTime?
+  reviewResultEmailSentAt DateTime?
+  reviewResultEmailStatus ResourceStatus?
   uploader      User           @relation(fields: [uploaderId], references: [id])
 
   @@index([status])
