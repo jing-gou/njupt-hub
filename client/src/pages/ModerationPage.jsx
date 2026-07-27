@@ -43,6 +43,11 @@ export default function ModerationPage() {
   // 新增状态：控制确认弹窗
   const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, reviewId: null });
 
+  const getReviewNotificationMessage = (notification) => {
+    if (!notification || notification.sent || notification.skipped) return '';
+    return notification.message || '审核结果邮件发送失败';
+  };
+
   const fetchResources = async (page = resourcePage) => {
     try {
       const qs = new URLSearchParams({
@@ -273,6 +278,10 @@ export default function ModerationPage() {
       }
       setFileManagerItems((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
       toast.success('操作成功');
+      const emailWarning = getReviewNotificationMessage(data?.reviewNotification);
+      if (emailWarning) {
+        toast.error(`状态已更新，但邮件未发出：${emailWarning}`);
+      }
     } catch (err) {
       toast.error(err?.message || '操作失败');
     } finally {
@@ -396,7 +405,9 @@ export default function ModerationPage() {
         })
       );
       const results = await Promise.all(tasks);
+      const payloads = await Promise.all(results.map((res) => res.json().catch(() => ({}))));
       const successIds = selectedFileManagerIds.filter((_, idx) => results[idx].ok);
+      const emailFailureCount = payloads.filter((payload) => getReviewNotificationMessage(payload?.reviewNotification)).length;
       setFileManagerItems((prev) =>
         prev.map((item) => (successIds.includes(item.id) ? { ...item, status } : item))
       );
@@ -405,6 +416,9 @@ export default function ModerationPage() {
       );
       setSelectedFileManagerIds([]);
       toast.success(`批量操作完成：成功 ${successIds.length} / ${results.length}`);
+      if (emailFailureCount > 0) {
+        toast.error(`其中 ${emailFailureCount} 封审核结果邮件未发出，请检查 SMTP 配置或后端日志`);
+      }
     } catch (err) {
       toast.error('批量操作失败');
     } finally {
@@ -481,10 +495,15 @@ export default function ModerationPage() {
         })
       );
       const results = await Promise.all(tasks);
+      const payloads = await Promise.all(results.map((res) => res.json().catch(() => ({}))));
       const successCount = results.filter((r) => r.ok).length;
+      const emailFailureCount = payloads.filter((payload) => getReviewNotificationMessage(payload?.reviewNotification)).length;
       setSelectedResourceIds([]);
       await fetchResources(resourcePage);
       toast.success(`批量操作完成：成功 ${successCount} / ${results.length}`);
+      if (emailFailureCount > 0) {
+        toast.error(`其中 ${emailFailureCount} 封审核结果邮件未发出，请检查 SMTP 配置或后端日志`);
+      }
     } catch (err) {
       toast.error('批量操作失败');
     } finally {

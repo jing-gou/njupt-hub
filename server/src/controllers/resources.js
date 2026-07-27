@@ -21,14 +21,24 @@ const decodeMultipartText = (value) => {
 
 const maybeSendResourceReviewResultEmail = async ({ resource, status }) => {
   if (!resource?.uploaderId || !['APPROVED', 'REJECTED'].includes(status)) {
-    return;
+    return {
+      attempted: false,
+      sent: false,
+      skipped: true,
+      reason: 'status_not_notifiable',
+    };
   }
 
   const shouldSend =
     resource.reviewResultEmailStatus !== status
     || !resource.reviewResultEmailSentAt;
   if (!shouldSend) {
-    return;
+    return {
+      attempted: false,
+      sent: false,
+      skipped: true,
+      reason: 'already_sent',
+    };
   }
 
   const uploader = await prisma.user.findUnique({
@@ -36,8 +46,31 @@ const maybeSendResourceReviewResultEmail = async ({ resource, status }) => {
     select: { id: true, username: true, email: true },
   });
 
-  if (!uploader || !uploader.email || uploader.username === '游客') {
-    return;
+  if (!uploader) {
+    return {
+      attempted: false,
+      sent: false,
+      skipped: true,
+      reason: 'uploader_not_found',
+    };
+  }
+
+  if (!uploader.email) {
+    return {
+      attempted: false,
+      sent: false,
+      skipped: true,
+      reason: 'missing_email',
+    };
+  }
+
+  if (uploader.username === '游客') {
+    return {
+      attempted: false,
+      sent: false,
+      skipped: true,
+      reason: 'guest_uploader',
+    };
   }
 
   try {
@@ -59,6 +92,13 @@ const maybeSendResourceReviewResultEmail = async ({ resource, status }) => {
         reviewResultEmailStatus: status,
       },
     });
+
+    return {
+      attempted: true,
+      sent: true,
+      skipped: false,
+      reason: 'sent',
+    };
   } catch (error) {
     console.error('Send resource review result email error:', {
       resourceId: resource.id,
@@ -66,6 +106,14 @@ const maybeSendResourceReviewResultEmail = async ({ resource, status }) => {
       status,
       message: error?.message,
     });
+
+    return {
+      attempted: true,
+      sent: false,
+      skipped: false,
+      reason: 'send_failed',
+      message: error?.message || '审核结果邮件发送失败',
+    };
   }
 };
 
@@ -264,11 +312,15 @@ export const updateResourceStatus = async (req, res) => {
       return next;
     });
 
-    await maybeSendResourceReviewResultEmail({ resource, status: String(status) });
+    const reviewNotification = await maybeSendResourceReviewResultEmail({
+      resource,
+      status: String(status),
+    });
 
     return res.status(200).json({
       ...updated,
-      fileUrl: getSignedUrl(updated.fileKey || updated.fileUrl)
+      fileUrl: getSignedUrl(updated.fileKey || updated.fileUrl),
+      reviewNotification,
     });
   } catch (error) {
     if (error?.code === 'P2025') {
