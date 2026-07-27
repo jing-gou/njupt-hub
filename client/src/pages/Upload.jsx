@@ -387,28 +387,39 @@ export default function BatchUpload({ onNavigate }) {
       }
     }
 
+    let thankYouEmailWarning = '';
     if (isAuthed && uploadedResources.length > 0) {
       const resourceIds = uploadedResources.map((resource) => resource.id).filter(Boolean);
-      fetch('/api/resources/upload/thank-you', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ resourceIds }),
-      }).then(async (response) => {
-        if (response.ok) return;
+      try {
+        const response = await fetch('/api/resources/upload/thank-you', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ resourceIds }),
+        });
         const data = await response.json().catch(() => ({}));
-        throw new Error(data?.message || `感谢邮件发送失败 (${response.status})`);
-      }).catch((error) => {
+        if (!response.ok) {
+          throw new Error(data?.message || `感谢邮件发送失败 (${response.status})`);
+        }
+        if (data?.emailSent === false) {
+          thankYouEmailWarning = data?.message || '感谢邮件未发送';
+        }
+      } catch (error) {
+        thankYouEmailWarning = error?.message || '感谢邮件发送失败';
         console.warn('Upload thank-you email request failed:', error);
-      });
+      }
     }
 
     if (failedCount > 0) {
       toast.error(`部分文件上传失败 (${failedCount} 个)`);
     } else if (uploadedResources.length > 0) {
       toast.success('全部上传成功，请等待审核');
+    }
+
+    if (thankYouEmailWarning) {
+      toast.error(`上传成功，但邮件通知失败：${thankYouEmailWarning}`);
     }
   };
 
