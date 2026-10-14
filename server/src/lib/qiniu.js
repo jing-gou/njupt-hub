@@ -9,6 +9,14 @@ const bucket = process.env.QINIU_BUCKET;
 const rawDomain = String(process.env.QINIU_DOMAIN || '').trim();
 const domain = rawDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 const protocol = String(process.env.QINIU_PROTOCOL || 'https').toLowerCase() === 'http' ? 'http' : 'https';
+// 历史上使用过的对象存储域名：域名迁移后，旧域名开头的存量链接会被自动改写为新域名，
+// 避免数据库里已存的 fileUrl 继续指向失效域名。多个域名用英文逗号分隔。
+const legacyDomains = new Set(
+  String(process.env.QINIU_LEGACY_DOMAINS || 'kodo.sugarfun.xyz')
+    .split(',')
+    .map((s) => s.trim().replace(/^https?:\/\//, '').replace(/\/+$/, ''))
+    .filter(Boolean)
+);
 
 const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
 const config = new qiniu.conf.Config();
@@ -122,11 +130,13 @@ export const getSignedUrl = (fileKey, expires = 7200) => {
   if (fileKey.includes('://')) {
     try {
       const url = new URL(fileKey);
-      // 如果不是我们的七牛域名，直接返回原链接
-      if (url.hostname !== domain) {
+      const isOurDomain = url.hostname === domain || legacyDomains.has(url.hostname);
+      // 如果不是我们的七牛域名（含历史域名），直接返回原链接
+      if (!isOurDomain) {
         return fileKey;
       }
-      // 如果是我们的域名，提取 Key 以便后续重新签名
+      // 是我们的域名（或历史域名）时，提取 Key 并用当前域名重新签名，
+      // 这样旧域名链接会被自动改写到新域名
       let key = decodeURIComponent(url.pathname.slice(1));
       key = key.replace(/^\//, '');
       return signUrl(key, expires);

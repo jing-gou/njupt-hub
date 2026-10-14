@@ -13,7 +13,9 @@
 - **后端环境变量**：在 `docker-compose.yml` 的 `server` 服务下的 `environment` 部分进行配置。
   - `DATABASE_URL`: 数据库连接字符串，默认使用 Docker 网络内的 `db` 服务。
   - `JWT_SECRET`: 用于生成 Token 的密钥，建议修改。
-  - `QINIU_*`: 七牛云存储配置。
+  - `QINIU_ACCESS_KEY` / `QINIU_SECRET_KEY` / `QINIU_BUCKET`: 七牛云存储配置。
+  - `QINIU_DOMAIN`: 对象存储访问域名，当前为 `kodo.sugarpub.fun`（不含协议）。
+  - `QINIU_LEGACY_DOMAINS`: 历史使用过的对象存储域名，多个用英文逗号分隔，例如 `kodo.sugarfun.xyz`。服务端会把旧域名开头的存量链接自动改写到新域名；不设置时默认包含 `kodo.sugarfun.xyz`。
   - `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE`: SMTP 服务器地址、端口与 TLS 模式。端口 465 通常使用 `SMTP_SECURE=true`，587 通常使用 `false`。
   - `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM`: 邮件服务账号、授权凭据与发件人。
 
