@@ -41,6 +41,66 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.listItems(type));
     }
 
+    @GetMapping("/admin/pending-reviews")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<List<PendingReviewView>> pendingReviews() {
+        return ResponseEntity.ok(reviewService.pendingReviews());
+    }
+
+    @PatchMapping("/admin/reviews/{reviewId}/status")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<Map<String, String>> updateReviewStatus(
+        @PathVariable String reviewId,
+        @RequestBody(required = false) ReviewStatusRequest request
+    ) {
+        reviewService.updateReviewStatus(
+            parseId(reviewId), request == null ? null : request.status());
+        return ResponseEntity.ok(Map.of("message", "状态更新成功"));
+    }
+
+    @DeleteMapping("/admin/reviews/{reviewId}")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<Map<String, String>> deleteReviewByAdmin(@PathVariable String reviewId) {
+        reviewService.deleteReviewByAdmin(parseId(reviewId));
+        return ResponseEntity.ok(Map.of("message", "评价已删除"));
+    }
+
+    @GetMapping("/admin/reports")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<List<ReportView>> reports() {
+        return ResponseEntity.ok(reviewService.reports());
+    }
+
+    @DeleteMapping("/admin/reports/{reportId}")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<Map<String, String>> dismissReport(@PathVariable String reportId) {
+        reviewService.deleteReport(parseId(reportId));
+        return ResponseEntity.ok(Map.of("message", "举报已撤销"));
+    }
+
+    @PostMapping("/items")
+    public ResponseEntity<AdminItemView> createItem(
+        @RequestBody(required = false) ReviewItemRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(reviewService.createItem(request));
+    }
+
+    @PatchMapping("/admin/items/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<AdminItemView> updateItem(
+        @PathVariable String id,
+        @RequestBody(required = false) ReviewItemRequest request
+    ) {
+        return ResponseEntity.ok(reviewService.updateItem(parseId(id), request));
+    }
+
+    @DeleteMapping("/admin/items/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<Map<String, String>> deleteItem(@PathVariable String id) {
+        reviewService.deleteItem(parseId(id));
+        return ResponseEntity.ok(Map.of("message", "项目已删除"));
+    }
+
     @PostMapping("/upload-image")
     public ResponseEntity<Map<String, String>> uploadImage(
         @RequestParam(value = "image", required = false) MultipartFile image

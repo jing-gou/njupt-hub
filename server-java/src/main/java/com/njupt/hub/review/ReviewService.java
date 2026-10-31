@@ -168,6 +168,194 @@ public class ReviewService {
         return signer.getSignedUrl(uploaded.key());
     }
 
+    public List<PendingReviewView> pendingReviews() {
+        List<Review> pending = reviews.selectList(new LambdaQueryWrapper<Review>()
+            .eq(Review::getStatus, "PENDING")
+            .orderByDesc(Review::getCreatedAt));
+        Map<Integer, User> usersById = loadUsers(pending.stream().map(Review::getReviewerId).toList());
+        Map<Integer, ReviewableItem> itemsById = loadItems(pending.stream().map(Review::getItemId).toList());
+
+        return pending.stream().map(review -> {
+            User reviewer = usersById.get(review.getReviewerId());
+            ReviewableItem item = itemsById.get(review.getItemId());
+            return new PendingReviewView(
+                review.getId(),
+                review.getRating(),
+                review.getComment(),
+                review.getIp(),
+                toInstant(review.getCreatedAt()),
+                review.getReviewerId(),
+                toInstant(review.getUpdatedAt()),
+                signer.getSignedUrl(review.getImageUrl()),
+                review.getStatus(),
+                review.getItemId(),
+                new PendingReviewView.Reviewer(reviewer == null ? null : reviewer.getUsername()),
+                new PendingReviewView.Item(item == null ? null : item.getTitle(),
+                    item == null ? null : item.getType()));
+        }).toList();
+    }
+
+    @Transactional
+    public void updateReviewStatus(long reviewId, String status) {
+        if (!"APPROVED".equals(status) && !"REJECTED".equals(status)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "无效的参数");
+        }
+        Review review = findReview(reviewId);
+        review.setStatus(status);
+        review.setUpdatedAt(java.time.LocalDateTime.now());
+        reviews.updateById(review);
+        ReviewStats.recalculate(reviews, items, users, review.getItemId());
+    }
+
+    @Transactional
+    public void deleteReviewByAdmin(long reviewId) {
+        Review review = findReview(reviewId);
+        cleanup.deleteWithRelations((int) reviewId);
+        ReviewStats.recalculate(reviews, items, users, review.getItemId());
+    }
+
+    public List<ReportView> reports() {
+        List<Report> reportList = reports.selectList(new LambdaQueryWrapper<Report>()
+            .orderByDesc(Report::getCreatedAt));
+        List<ReportView> result = new ArrayList<>();
+        for (Report report : reportList) {
+            User reporter = users.selectById(report.getUserId());
+            Review review = reviews.selectById(report.getReviewId());
+            User reviewer = review == null ? null : users.selectById(review.getReviewerId());
+            ReviewableItem item = review == null ? null : items.selectById(review.getItemId());
+            result.add(new ReportView(
+                report.getId(),
+                report.getReason(),
+                report.getUserId(),
+                report.getReviewId(),
+                toInstant(report.getCreatedAt()),
+                new ReportView.User(reporter == null ? null : reporter.getUsername()),
+                review == null ? null : new ReportView.Review(
+                    review.getId(),
+                    review.getRating(),
+                    review.getComment(),
+                    review.getIp(),
+                    toInstant(review.getCreatedAt()),
+                    review.getReviewerId(),
+                    toInstant(review.getUpdatedAt()),
+                    signer.getSignedUrl(review.getImageUrl()),
+                    review.getStatus(),
+                    review.getItemId(),
+                    new ReportView.Reviewer(reviewer == null ? null : reviewer.getUsername()),
+                    new ReportView.Item(item == null ? null : item.getTitle()))));
+        }
+        return result;
+    }
+
+    public void deleteReport(long reportId) {
+        reports.deleteById(reportId);
+    }
+
+    @Transactional
+    public AdminItemView createItem(ReviewItemRequest request) {
+        String title = request == null ? null : request.title();
+        String type = request == null ? null : request.type();
+        if (title == null || title.isBlank() || type == null || type.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "标题和类型均为必填项");
+        }
+        if (!List.of("MENTOR", "CANTEEN", "TAKEOUT").contains(type)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "无效的类型");
+        }
+
+        ReviewableItem item = new ReviewableItem();
+        item.setTitle(title);
+        item.setDescription(request.description());
+        item.setImageUrl(normalizeImage(request.imageUrl()));
+        item.setType(type);
+        item.setLocation(request.location());
+        item.setCollege(request.college());
+        item.setAvgRating(0.0);
+        item.setCreatedAt(java.time.LocalDateTime.now());
+        item.setUpdatedAt(java.time.LocalDateTime.now());
+        items.insert(item);
+        return toAdminItem(item);
+    }
+
+    @Transactional
+    public AdminItemView updateItem(long id, ReviewItemRequest request) {
+        ReviewableItem item = items.selectById(id);
+        if (item == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "项目未找到");
+        }
+        if (request.title() != null) {
+            String title = request.title().trim();
+            if (title.isEmpty()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "标题不能为空");
+            }
+            item.setTitle(title);
+        }
+        if (request.description() != null) {
+            item.setDescription(request.description());
+        }
+        if (request.imageUrl() != null) {
+            item.setImageUrl(normalizeImage(request.imageUrl()));
+        }
+        if (request.location() != null) {
+            item.setLocation(request.location());
+        }
+        if (request.college() != null) {
+            item.setCollege(request.college());
+        }
+        item.setUpdatedAt(java.time.LocalDateTime.now());
+        items.updateById(item);
+        return toAdminItem(item);
+    }
+
+    @Transactional
+    public void deleteItem(long id) {
+        ReviewableItem item = items.selectById(id);
+        if (item == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "项目未找到");
+        }
+        List<Integer> reviewIds = reviews.selectList(new LambdaQueryWrapper<Review>()
+                .eq(Review::getItemId, id))
+            .stream()
+            .map(Review::getId)
+            .toList();
+        cleanup.deleteRelations(reviewIds);
+        if (!reviewIds.isEmpty()) {
+            reviews.delete(new LambdaQueryWrapper<Review>().in(Review::getId, reviewIds));
+        }
+        items.deleteById(id);
+    }
+
+    private AdminItemView toAdminItem(ReviewableItem item) {
+        return new AdminItemView(
+            item.getId(),
+            item.getTitle(),
+            item.getDescription(),
+            signer.getSignedUrl(item.getImageUrl()),
+            item.getType(),
+            item.getLocation(),
+            item.getCollege(),
+            item.getAvgRating(),
+            toInstant(item.getCreatedAt()),
+            toInstant(item.getUpdatedAt()));
+    }
+
+    private String normalizeImage(String imageUrl) {
+        return imageUrl == null || imageUrl.isBlank()
+            ? null
+            : QiniuUrlSigner.normalizeStoredFileKey(imageUrl);
+    }
+
+    private Map<Integer, ReviewableItem> loadItems(List<Integer> ids) {
+        List<Integer> distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
+        if (distinct.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, ReviewableItem> result = new HashMap<>();
+        for (ReviewableItem item : items.selectBatchIds(distinct)) {
+            result.put(item.getId(), item);
+        }
+        return result;
+    }
+
     @Transactional
     public ReviewCreatedView updateOwn(long reviewId, long userId, UpdateReviewRequest request) {
         Review review = findReview(reviewId);
