@@ -9,6 +9,9 @@ const contractDir = path.join(root, 'src/test/resources/contract');
 const manifest = JSON.parse(
   fs.readFileSync(path.join(root, 'scripts/contract-manifest.json'), 'utf8'),
 );
+const onlyIndex = process.argv.indexOf('--only');
+const only = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : null;
+const selected = only ? manifest.filter((name) => name === only) : manifest;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -76,7 +79,7 @@ async function sendCode(type, email) {
   return latestCodeFor(email);
 }
 
-for (const name of manifest) {
+for (const name of selected) {
   const file = path.join(contractDir, `${name}.json`);
   const fixture = JSON.parse(fs.readFileSync(file, 'utf8'));
   const headers = { ...(fixture.headers || {}) };

@@ -25,5 +25,7 @@
   "auth-reset-weak-password",
   "resource-list",
   "resource-detail",
-  "resource-download"
+  "resource-download",
+  "resource-meta",
+  "resource-thank-you"
 ]

@@ -9,7 +9,7 @@
   "presetCode": {
     "type": "reset",
     "email": "alice@example.com",
-    "code": "491429"
+    "code": "999412"
   },
   "body": {
     "email": "alice@example.com",
