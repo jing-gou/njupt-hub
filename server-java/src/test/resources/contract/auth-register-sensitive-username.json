@@ -1,1 +1,19 @@
-{"name":"auth-register-sensitive-username","method":"POST","path":"/api/auth/register","headers":{},"body":{"username":"傻逼","password":"Password123","email":"new@example.com","code":"123456"},"expected":{"status":400,"json":{"message":"用户名包含敏感词，请修改后重试"}},"ignorePaths":[]}
+{
+  "name": "auth-register-sensitive-username",
+  "method": "POST",
+  "path": "/api/auth/register",
+  "headers": {},
+  "body": {
+    "username": "傻逼",
+    "password": "Password123",
+    "email": "new@example.com",
+    "code": "123456"
+  },
+  "expected": {
+    "status": 400,
+    "json": {
+      "message": "用户名包含敏感词，请修改后重试"
+    }
+  },
+  "ignorePaths": []
+}

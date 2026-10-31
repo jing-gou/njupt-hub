@@ -1,1 +1,17 @@
-{"name":"auth-login-unknown","method":"POST","path":"/api/auth/login","headers":{},"body":{"username":"nobody","password":"Password123"},"expected":{"status":401,"json":{"message":"用户名或密码错误"}},"ignorePaths":[]}
+{
+  "name": "auth-login-unknown",
+  "method": "POST",
+  "path": "/api/auth/login",
+  "headers": {},
+  "body": {
+    "username": "nobody",
+    "password": "Password123"
+  },
+  "expected": {
+    "status": 401,
+    "json": {
+      "message": "用户名或密码错误"
+    }
+  },
+  "ignorePaths": []
+}

@@ -1,1 +1,14 @@
-{"name":"auth-register-missing","method":"POST","path":"/api/auth/register","headers":{},"body":{},"expected":{"status":400,"json":{"message":"用户名、密码、邮箱和验证码均为必填项"}},"ignorePaths":[]}
+{
+  "name": "auth-register-missing",
+  "method": "POST",
+  "path": "/api/auth/register",
+  "headers": {},
+  "body": {},
+  "expected": {
+    "status": 400,
+    "json": {
+      "message": "用户名、密码、邮箱和验证码均为必填项"
+    }
+  },
+  "ignorePaths": []
+}

@@ -33,7 +33,7 @@ spring:
     username: ${SMTP_USER:}
     password: ${SMTP_PASS:}
     properties:
-      mail.smtp.auth: true
+      mail.smtp.auth: ${SMTP_AUTH:true}
       mail.smtp.ssl.enable: ${SMTP_SECURE:true}
       mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
       mail.smtp.ssl.trust: "*"
