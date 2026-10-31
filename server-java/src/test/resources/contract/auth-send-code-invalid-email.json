@@ -1,0 +1,1 @@
+{"name":"auth-send-code-invalid-email","method":"POST","path":"/api/auth/send-verification-code","headers":{},"body":{"email":"bad"},"expected":{"status":400,"json":{"message":"邮箱格式不正确"}},"ignorePaths":[]}

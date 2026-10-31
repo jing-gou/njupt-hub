@@ -1,0 +1,1 @@
+{"name":"auth-profile-empty","method":"PATCH","path":"/api/auth/profile","headers":{},"seed":["users.sql"],"loginAs":"alice","body":{},"expected":{"status":400,"json":{"message":"用户名不能为空"}},"ignorePaths":[]}

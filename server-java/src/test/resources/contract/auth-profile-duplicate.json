@@ -1,0 +1,1 @@
+{"name":"auth-profile-duplicate","method":"PATCH","path":"/api/auth/profile","headers":{},"seed":["users.sql"],"loginAs":"alice","body":{"username":"charlie"},"expected":{"status":409,"json":{"message":"用户名已存在"}},"ignorePaths":[]}
