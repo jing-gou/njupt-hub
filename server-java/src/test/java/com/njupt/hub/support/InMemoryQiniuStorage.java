@@ -40,6 +40,11 @@ public class InMemoryQiniuStorage implements QiniuStorage {
     }
 
     @Override
+    public String rawUrl(String key) {
+        return key == null || key.isBlank() ? "" : "https://kodo.test/" + key;
+    }
+
+    @Override
     public String normalizeKey(String value) {
         return QiniuUrlSigner.normalizeStoredFileKey(value);
     }

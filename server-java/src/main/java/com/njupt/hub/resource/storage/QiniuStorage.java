@@ -10,6 +10,8 @@ public interface QiniuStorage {
 
     String signedUrl(String key);
 
+    String rawUrl(String key);
+
     String normalizeKey(String value);
 
     record UploadResult(String key, String url) {

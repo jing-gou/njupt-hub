@@ -44,7 +44,8 @@ public class SecurityConfig {
                     "/api/auth/leaderboard"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/resources/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/resources", "/api/resources/upload").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/resources", "/api/resources/upload",
+                    "/api/resources/*/download").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(entryPoint)

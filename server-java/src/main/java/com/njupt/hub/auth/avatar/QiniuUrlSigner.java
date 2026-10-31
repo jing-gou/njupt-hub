@@ -44,6 +44,20 @@ public class QiniuUrlSigner {
         return getSignedUrl(fileKey, DEFAULT_EXPIRES);
     }
 
+    public String rawUrl(String fileKey) {
+        if (fileKey == null || fileKey.isBlank()) {
+            return "";
+        }
+        if (fileKey.contains("://")) {
+            return fileKey;
+        }
+        if (domain == null || domain.isBlank()) {
+            return fileKey;
+        }
+        return protocol + "://" + domain
+            + UriUtils.encodePath("/" + fileKey.replaceFirst("^/+", ""), StandardCharsets.UTF_8);
+    }
+
     public String getSignedUrl(String fileKey, long expires) {
         if (fileKey == null || fileKey.isBlank()) {
             return "";

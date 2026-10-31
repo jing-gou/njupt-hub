@@ -85,6 +85,11 @@ public class QiniuStorageClient implements QiniuStorage {
     }
 
     @Override
+    public String rawUrl(String key) {
+        return signer.rawUrl(key);
+    }
+
+    @Override
     public String normalizeKey(String value) {
         return QiniuUrlSigner.normalizeStoredFileKey(value);
     }

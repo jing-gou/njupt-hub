@@ -9,11 +9,15 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.njupt.hub.auth.avatar.QiniuUrlSigner;
+import com.njupt.hub.auth.mail.MailService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
 import com.njupt.hub.common.api.ApiException;
 import com.njupt.hub.resource.storage.QiniuStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,23 +27,28 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class ResourceService {
 
+    private static final Logger log = LoggerFactory.getLogger(ResourceService.class);
     private static final String PREFIX_PENDING = "pending";
+    private static final String PREFIX_PUBLIC = "public";
 
     private final ResourceMapper resources;
     private final UserMapper users;
     private final QiniuUrlSigner signer;
     private final QiniuStorage storage;
+    private final MailService mailService;
 
     public ResourceService(
         ResourceMapper resources,
         UserMapper users,
         QiniuUrlSigner signer,
-        QiniuStorage storage
+        QiniuStorage storage,
+        MailService mailService
     ) {
         this.resources = resources;
         this.users = users;
         this.signer = signer;
         this.storage = storage;
+        this.mailService = mailService;
     }
 
     public ResourcePage list(ResourceQuery query) {
@@ -206,11 +215,157 @@ public class ResourceService {
     }
 
     public ResourceView get(long id) {
+        Resource resource = findResource(id);
+        return toView(resource, users.selectById(resource.getUploaderId()));
+    }
+
+    @Transactional
+    public String downloadUrl(long id) {
+        Resource resource = findResource(id);
+        String key = resource.getFileKey() != null ? resource.getFileKey() : resource.getFileUrl();
+        resources.update(null, new LambdaUpdateWrapper<Resource>()
+            .eq(Resource::getId, id)
+            .setSql("downloadCount = downloadCount + 1"));
+        return storage.signedUrl(key);
+    }
+
+    @Transactional
+    public DownloadCount incrementDownload(long id) {
+        Resource resource = findResource(id);
+        int next = (resource.getDownloadCount() == null ? 0 : resource.getDownloadCount()) + 1;
+        resources.update(null, new LambdaUpdateWrapper<Resource>()
+            .eq(Resource::getId, id)
+            .set(Resource::getDownloadCount, next));
+        return new DownloadCount(id, next);
+    }
+
+    @Transactional
+    public StatusResult updateStatus(long id, String status) {
+        if (!"PENDING".equals(status) && !"APPROVED".equals(status) && !"REJECTED".equals(status)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "无效的状态值");
+        }
+
+        Resource resource = findResource(id);
+        String previous = resource.getStatus();
+        LocalDateTime now = LocalDateTime.now();
+
+        if ("APPROVED".equals(status)
+            && resource.getFileKey() != null
+            && resource.getFileKey().startsWith(PREFIX_PENDING + "/")) {
+            String destination = PREFIX_PUBLIC
+                + resource.getFileKey().substring(PREFIX_PENDING.length());
+            try {
+                storage.move(resource.getFileKey(), destination);
+                resource.setFileKey(destination);
+                resource.setFileUrl(storage.rawUrl(destination));
+            } catch (RuntimeException ex) {
+                log.error("Failed to move resource {} to public", id, ex);
+            }
+        }
+
+        boolean clearFileKey = false;
+        if ("REJECTED".equals(status) && resource.getFileKey() != null) {
+            try {
+                storage.delete(resource.getFileKey());
+            } catch (RuntimeException ex) {
+                log.error("Failed to delete rejected resource file {}", id, ex);
+            }
+            clearFileKey = true;
+        }
+
+        resource.setStatus(status);
+        resource.setUpdatedAt(now);
+        resources.updateById(resource);
+        if (clearFileKey) {
+            resources.update(null, new LambdaUpdateWrapper<Resource>()
+                .eq(Resource::getId, id)
+                .set(Resource::getFileKey, null));
+            resource.setFileKey(null);
+        }
+
+        if (!"APPROVED".equals(previous) && "APPROVED".equals(status)) {
+            users.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, resource.getUploaderId())
+                .ne(User::getUsername, "游客")
+                .setSql("experience = experience + 10"));
+        }
+
+        ReviewNotification notification = maybeSendReviewResultEmail(resource, status);
+        return new StatusResult(toView(resource, users.selectById(resource.getUploaderId())),
+            notification);
+    }
+
+    @Transactional
+    public ResourceView updateMeta(long id, String title) {
+        String nextTitle = title == null ? "" : title.trim();
+        if (nextTitle.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "标题不能为空");
+        }
+        Resource resource = findResource(id);
+        resource.setTitle(nextTitle);
+        resource.setUpdatedAt(LocalDateTime.now());
+        resources.updateById(resource);
+        return toView(resource, users.selectById(resource.getUploaderId()));
+    }
+
+    @Transactional
+    public void delete(long id) {
+        Resource resource = findResource(id);
+        String key = resource.getFileKey() != null
+            ? resource.getFileKey()
+            : storage.normalizeKey(resource.getFileUrl());
+        if (key != null && !key.isBlank()) {
+            try {
+                storage.delete(key);
+            } catch (RuntimeException ex) {
+                log.error("Failed to delete cloud file for resource {}", id, ex);
+            }
+        }
+        resources.deleteById(id);
+    }
+
+    private ReviewNotification maybeSendReviewResultEmail(Resource resource, String status) {
+        if (!"APPROVED".equals(status) && !"REJECTED".equals(status)) {
+            return new ReviewNotification(false, false, true, "status_not_notifiable", null);
+        }
+
+        User uploader = users.selectById(resource.getUploaderId());
+        if (uploader == null) {
+            return new ReviewNotification(false, false, true, "uploader_not_found", null);
+        }
+        if (uploader.getEmail() == null || uploader.getEmail().isBlank()) {
+            return new ReviewNotification(false, false, true, "missing_email", null);
+        }
+        if ("游客".equals(uploader.getUsername())) {
+            return new ReviewNotification(false, false, true, "guest_uploader", null);
+        }
+        if (status.equals(resource.getReviewResultEmailStatus())
+            && resource.getReviewResultEmailSentAt() != null) {
+            return new ReviewNotification(false, false, true, "already_sent", null);
+        }
+
+        try {
+            mailService.sendResourceReviewResultEmail(uploader.getEmail(), uploader.getUsername(), resource);
+            LocalDateTime now = LocalDateTime.now();
+            resources.update(null, new LambdaUpdateWrapper<Resource>()
+                .eq(Resource::getId, resource.getId())
+                .set(Resource::getReviewResultEmailSentAt, now)
+                .set(Resource::getReviewResultEmailStatus, status)
+                .set(Resource::getUpdatedAt, now));
+            return new ReviewNotification(true, true, false, "sent", null);
+        } catch (RuntimeException ex) {
+            log.error("Failed to send review result email for resource {}", resource.getId(), ex);
+            return new ReviewNotification(true, false, false, "send_failed",
+                ex.getMessage() == null ? "审核结果邮件发送失败" : ex.getMessage());
+        }
+    }
+
+    private Resource findResource(long id) {
         Resource resource = resources.selectById(id);
         if (resource == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "资源未找到");
         }
-        return toView(resource, users.selectById(resource.getUploaderId()));
+        return resource;
     }
 
     private Map<Integer, User> loadUploaders(List<Resource> items) {
