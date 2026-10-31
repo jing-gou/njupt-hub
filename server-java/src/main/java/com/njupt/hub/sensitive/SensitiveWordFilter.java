@@ -24,12 +24,17 @@ public class SensitiveWordFilter {
 
     private final Node root = new Node();
     private final Set<Character> noise = new HashSet<>();
+    private int loadedWords;
 
     public SensitiveWordFilter(@Value("${SENSITIVE_WORDS:}") String extraWords) {
         loadNoiseChars();
         addWords(readLines(BUILTIN_PATH));
         loadLexicon();
         addWords(splitWords(extraWords));
+        if (loadedWords < 1000) {
+            throw new IllegalStateException(
+                "Sensitive word resources look incomplete, only loaded: " + loadedWords);
+        }
     }
 
     public static SensitiveWordFilter forTesting(String extraWords) {
@@ -82,7 +87,11 @@ public class SensitiveWordFilter {
     }
 
     private void loadLexicon() {
-        for (String fileName : readLines(LEXICON_INDEX)) {
+        List<String> index = readLines(LEXICON_INDEX);
+        if (index.stream().noneMatch(fileName -> !fileName.isBlank())) {
+            throw new IllegalStateException("Sensitive lexicon index is empty");
+        }
+        for (String fileName : index) {
             if (fileName.isBlank()) {
                 continue;
             }
@@ -104,6 +113,7 @@ public class SensitiveWordFilter {
                 node = node.children.computeIfAbsent(normalized.charAt(index), key -> new Node());
             }
             node.terminal = true;
+            loadedWords++;
         }
     }
 

@@ -27,4 +27,18 @@ class ContractNormalizerTest {
         assertThat(masked.at("/fileUrl").asText()).isEqualTo("<masked>");
         assertThat(masked.at("/items/0/name").asText()).isEqualTo("a");
     }
+
+    @Test
+    void masks_all_children_when_star_is_last_segment() throws Exception {
+        JsonNode node = mapper.readTree("""
+            {"items":[{"id":2},{"id":3}],"map":{"a":1,"b":2}}
+            """);
+
+        JsonNode masked = ContractNormalizer.mask(node, List.of("/items/*", "/map/*"));
+
+        assertThat(masked.at("/items/0").asText()).isEqualTo("<masked>");
+        assertThat(masked.at("/items/1").asText()).isEqualTo("<masked>");
+        assertThat(masked.at("/map/a").asText()).isEqualTo("<masked>");
+        assertThat(masked.at("/map/b").asText()).isEqualTo("<masked>");
+    }
 }

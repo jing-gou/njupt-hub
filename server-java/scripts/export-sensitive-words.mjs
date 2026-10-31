@@ -14,6 +14,19 @@ for (const name of ['ads', 'politics', 'violence', 'porn']) {
   }
 }
 
+// The Node filter also adds a small hard-coded fallback list on top of the library.
+const nodeFilterSource = fs.readFileSync(
+  path.join(repoRoot, 'server/src/lib/sensitiveFilter.js'),
+  'utf8',
+);
+const fallbackMatch = nodeFilterSource.match(/const BUILTIN_FALLBACK_WORDS = \[([\s\S]*?)\];/);
+if (!fallbackMatch) {
+  throw new Error('BUILTIN_FALLBACK_WORDS not found in server/src/lib/sensitiveFilter.js');
+}
+for (const match of fallbackMatch[1].matchAll(/(['"])((?:\\.|(?!\1).)*)\1/g)) {
+  words.add(match[2]);
+}
+
 const wordOutDir = path.join(resources, 'sensitive-words');
 fs.mkdirSync(wordOutDir, { recursive: true });
 fs.writeFileSync(path.join(wordOutDir, 'builtin.txt'), `${[...words].sort().join('\n')}\n`);

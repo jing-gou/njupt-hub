@@ -34,6 +34,22 @@ public final class ContractNormalizer {
         return copy;
     }
 
+    private static void maskAllChildren(JsonNode node) {
+        if (node.isArray()) {
+            ArrayNode array = (ArrayNode) node;
+            for (int index = 0; index < array.size(); index++) {
+                array.set(index, TextNode.valueOf(MASK));
+            }
+        } else if (node.isObject()) {
+            ObjectNode object = (ObjectNode) node;
+            List<String> names = new java.util.ArrayList<>();
+            object.fieldNames().forEachRemaining(names::add);
+            for (String name : names) {
+                object.put(name, MASK);
+            }
+        }
+    }
+
     private static void apply(JsonNode node, String[] segments, int index) {
         if (node == null || index >= segments.length) {
             return;
@@ -41,6 +57,10 @@ public final class ContractNormalizer {
 
         String segment = segments[index];
         if ("*".equals(segment)) {
+            if (index == segments.length - 1) {
+                maskAllChildren(node);
+                return;
+            }
             if (node.isArray()) {
                 for (JsonNode child : node) {
                     apply(child, segments, index + 1);

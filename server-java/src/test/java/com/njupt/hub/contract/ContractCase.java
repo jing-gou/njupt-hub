@@ -10,10 +10,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ContractCase(
     @JsonProperty("name") String name,
+    @JsonProperty("type") String type,
+    @JsonProperty("deviationRef") String deviationRef,
     @JsonProperty("method") String method,
     @JsonProperty("path") String path,
     @JsonProperty("headers") Map<String, String> headers,
-    @JsonProperty("body") String body,
+    @JsonProperty("body") JsonNode body,
     @JsonProperty("expected") Expected expected,
     @JsonProperty("ignorePaths") List<String> ignorePaths
 ) {
@@ -21,6 +23,7 @@ public record ContractCase(
     public ContractCase {
         headers = headers == null ? Map.of() : headers;
         ignorePaths = ignorePaths == null ? List.of() : ignorePaths;
+        type = type == null || type.isBlank() ? "parity" : type;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

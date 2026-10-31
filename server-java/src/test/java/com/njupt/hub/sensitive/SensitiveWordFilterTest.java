@@ -30,6 +30,13 @@ class SensitiveWordFilterTest {
     }
 
     @Test
+    void hits_fallback_words_missing_from_library() {
+        assertThat(filter.findFirst("nmsl")).isNotNull();
+        assertThat(filter.findFirst("NMSL")).isNotNull();
+        assertThat(filter.findFirst("n m s l")).isNotNull();
+    }
+
+    @Test
     void returns_null_for_clean_text() {
         assertThat(filter.findFirst("高等数学期末复习资料")).isNull();
     }
@@ -50,6 +57,25 @@ class SensitiveWordFilterTest {
         }
     }
 
+    @Test
+    void documents_v9_boundary_deviations() throws Exception {
+        try (InputStream in = getClass().getClassLoader()
+            .getResourceAsStream("sensitive-deviations.json")) {
+            assertThat(in).as("sensitive-deviations.json resource").isNotNull();
+            List<Deviation> deviations = new ObjectMapper().readValue(in, new TypeReference<>() {
+            });
+
+            for (Deviation deviation : deviations) {
+                assertThat(filter.contains(deviation.text()))
+                    .as("java side of V9 deviation: %s", deviation.text())
+                    .isEqualTo(deviation.javaExpected());
+            }
+        }
+    }
+
     record Case(String text, boolean expected) {
+    }
+
+    record Deviation(String text, boolean nodeExpected, boolean javaExpected, String reason) {
     }
 }

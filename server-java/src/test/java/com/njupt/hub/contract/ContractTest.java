@@ -12,9 +12,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.njupt.hub.support.MySqlTestBase;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.http.MediaType;
@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @AutoConfigureMockMvc
+@Import(ContractEchoController.class)
 class ContractTest extends MySqlTestBase {
 
     @Autowired
@@ -64,7 +65,8 @@ class ContractTest extends MySqlTestBase {
 
         contractCase.headers().forEach(request::header);
         if (contractCase.body() != null) {
-            request.contentType(MediaType.APPLICATION_JSON).content(contractCase.body());
+            request.contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(contractCase.body()));
         }
 
         MvcResult result = mvc.perform(request).andReturn();
@@ -80,6 +82,6 @@ class ContractTest extends MySqlTestBase {
         JsonNode maskedActual = ContractNormalizer.mask(actualJson, contractCase.ignorePaths());
         JsonNode maskedExpected = ContractNormalizer.mask(expectedJson, contractCase.ignorePaths());
 
-        JSONAssert.assertEquals(maskedExpected.toString(), maskedActual.toString(), true);
+        JsonEquivalence.assertEquivalent(maskedExpected, maskedActual, 1e-6);
     }
 }
