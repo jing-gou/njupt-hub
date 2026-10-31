@@ -17,6 +17,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.njupt.hub.auth.avatar.QiniuUrlSigner;
 import com.njupt.hub.auth.limit.RateLimiter;
 import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.user.GuestUserService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
 import com.njupt.hub.common.api.ApiException;
@@ -41,6 +42,7 @@ public class ResourceService {
     private final QiniuStorage storage;
     private final MailService mailService;
     private final RateLimiter rateLimiter;
+    private final GuestUserService guestUserService;
 
     public ResourceService(
         ResourceMapper resources,
@@ -48,7 +50,8 @@ public class ResourceService {
         QiniuUrlSigner signer,
         QiniuStorage storage,
         MailService mailService,
-        RateLimiter rateLimiter
+        RateLimiter rateLimiter,
+        GuestUserService guestUserService
     ) {
         this.resources = resources;
         this.users = users;
@@ -56,6 +59,7 @@ public class ResourceService {
         this.storage = storage;
         this.mailService = mailService;
         this.rateLimiter = rateLimiter;
+        this.guestUserService = guestUserService;
     }
 
     public ResourcePage list(ResourceQuery query) {
@@ -446,18 +450,7 @@ public class ResourceService {
     }
 
     private User guestUser() {
-        User guest = users.selectOne(
-            new LambdaQueryWrapper<User>().eq(User::getUsername, "游客"));
-        if (guest != null) {
-            return guest;
-        }
-
-        users.insertGuestIgnore();
-        guest = users.selectGuestForUpdate();
-        if (guest == null) {
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "游客用户创建失败");
-        }
-        return guest;
+        return guestUserService.getOrCreate();
     }
 
     private String normalizeCourse(String course) {

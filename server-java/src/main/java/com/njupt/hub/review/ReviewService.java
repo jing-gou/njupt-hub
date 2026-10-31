@@ -11,12 +11,18 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.njupt.hub.auth.avatar.QiniuUrlSigner;
+import com.njupt.hub.auth.limit.ClientIpResolver;
+import com.njupt.hub.auth.limit.RateLimiter;
+import com.njupt.hub.auth.user.GuestUserService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
 import com.njupt.hub.common.api.ApiException;
+import com.njupt.hub.sensitive.SensitiveWordFilter;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ReviewService {
@@ -29,6 +35,9 @@ public class ReviewService {
     private final ReplyMapper replies;
     private final UserMapper users;
     private final QiniuUrlSigner signer;
+    private final GuestUserService guestUsers;
+    private final SensitiveWordFilter sensitiveWords;
+    private final RateLimiter rateLimiter;
 
     public ReviewService(
         ReviewableItemMapper items,
@@ -36,7 +45,10 @@ public class ReviewService {
         LikeMapper likes,
         ReplyMapper replies,
         UserMapper users,
-        QiniuUrlSigner signer
+        QiniuUrlSigner signer,
+        GuestUserService guestUsers,
+        SensitiveWordFilter sensitiveWords,
+        RateLimiter rateLimiter
     ) {
         this.items = items;
         this.reviews = reviews;
@@ -44,6 +56,9 @@ public class ReviewService {
         this.replies = replies;
         this.users = users;
         this.signer = signer;
+        this.guestUsers = guestUsers;
+        this.sensitiveWords = sensitiveWords;
+        this.rateLimiter = rateLimiter;
     }
 
     public List<ReviewItemView> listItems(String type) {
@@ -87,6 +102,103 @@ public class ReviewService {
                 latest));
         }
         return result;
+    }
+
+    @Transactional
+    public ReviewCreatedView submit(ReviewSubmitRequest request, Long userId, String ip) {
+        if (!rateLimiter.tryAcquire("review-submit", ip == null ? "unknown" : ip,
+            5, java.time.Duration.ofMinutes(15))) {
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试");
+        }
+
+        Integer itemId = request == null ? null : request.itemId();
+        Double rating = request == null ? null : request.rating();
+        if (itemId == null || rating == null || rating == 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "项目 ID 和评分均为必填项");
+        }
+
+        ReviewableItem item = items.selectById(itemId);
+        if (item == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "评价项目不存在");
+        }
+
+        String comment = request.comment() == null ? null : request.comment().trim();
+        if (comment != null && !comment.isEmpty() && sensitiveWords.contains(comment)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "评价内容包含敏感词，请修改后再提交");
+        }
+        String imageKey = request.imageUrl() == null || request.imageUrl().isBlank()
+            ? null
+            : QiniuUrlSigner.normalizeStoredFileKey(request.imageUrl());
+
+        User reviewer;
+        if (userId == null) {
+            reviewer = guestUsers.getOrCreate();
+            if (comment != null && !comment.isEmpty()) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "游客仅允许评分，请登录后发表文字评论");
+            }
+            if (imageKey != null) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "游客仅允许评分，请登录后上传图片");
+            }
+        } else {
+            reviewer = users.selectById(userId);
+            if (reviewer == null) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "用户不存在");
+            }
+        }
+
+        LambdaQueryWrapper<Review> latestQuery = new LambdaQueryWrapper<Review>()
+            .eq(Review::getItemId, itemId)
+            .orderByDesc(Review::getCreatedAt)
+            .last("LIMIT 1");
+        if (userId == null) {
+            latestQuery.eq(Review::getReviewerId, reviewer.getId()).eq(Review::getIp, ip);
+        } else {
+            latestQuery.eq(Review::getReviewerId, reviewer.getId());
+        }
+        Review latest = reviews.selectOne(latestQuery);
+        boolean withinWindow = latest != null
+            && latest.getCreatedAt() != null
+            && latest.getCreatedAt().isAfter(java.time.LocalDateTime.now().minusDays(1));
+
+        boolean needModeration = "MENTOR".equals(item.getType())
+            && ((comment != null && !comment.isEmpty()) || imageKey != null);
+        String status = needModeration ? "PENDING" : "APPROVED";
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+        Review review;
+        if (withinWindow) {
+            review = latest;
+            review.setRating(rating);
+            review.setComment(comment);
+            review.setImageUrl(imageKey);
+            review.setStatus(status);
+            review.setIp(ip);
+            review.setUpdatedAt(now);
+            reviews.updateById(review);
+        } else {
+            review = new Review();
+            review.setRating(rating);
+            review.setComment(comment);
+            review.setImageUrl(imageKey);
+            review.setStatus(status);
+            review.setIp(ip);
+            review.setReviewerId(reviewer.getId());
+            review.setItemId(itemId);
+            review.setCreatedAt(now);
+            review.setUpdatedAt(now);
+            reviews.insert(review);
+        }
+
+        ReviewStats.recalculate(reviews, items, users, itemId);
+
+        if (userId != null && !withinWindow) {
+            users.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, userId)
+                .setSql("experience = experience + 5"));
+        }
+
+        return toCreatedView(review, reviewer,
+            "PENDING".equals(status) ? "评价已提交，审核通过后可公开展示" : null);
     }
 
     public ReviewItemDetail getItem(long id, Long userId) {
@@ -161,6 +273,22 @@ public class ReviewService {
             item.getAvgRating() == null ? 0 : item.getAvgRating(),
             reviewCount,
             detailViews);
+    }
+
+    private ReviewCreatedView toCreatedView(Review review, User reviewer, String message) {
+        return new ReviewCreatedView(
+            review.getId(),
+            review.getRating(),
+            review.getComment(),
+            review.getIp(),
+            toInstant(review.getCreatedAt()),
+            review.getReviewerId(),
+            toInstant(review.getUpdatedAt()),
+            signer.getSignedUrl(review.getImageUrl()),
+            review.getStatus(),
+            review.getItemId(),
+            new ReviewCreatedView.Reviewer(reviewer == null ? null : reviewer.getUsername()),
+            message);
     }
 
     private ReviewSummaryView toSummary(Review review, User reviewer) {
