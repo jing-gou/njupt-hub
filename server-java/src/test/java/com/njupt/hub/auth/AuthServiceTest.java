@@ -13,6 +13,7 @@ import com.njupt.hub.auth.token.JwtService;
 import com.njupt.hub.auth.token.SessionService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
+import com.njupt.hub.resource.storage.QiniuStorage;
 import com.njupt.hub.common.api.ApiException;
 import com.njupt.hub.sensitive.SensitiveWordFilter;
 import org.junit.jupiter.api.Test;
@@ -36,9 +37,10 @@ class AuthServiceTest {
     private final ClientIpResolver ipResolver = mock(ClientIpResolver.class);
     private final SensitiveWordFilter sensitive = mock(SensitiveWordFilter.class);
     private final QiniuUrlSigner signer = mock(QiniuUrlSigner.class);
+    private final QiniuStorage storage = mock(QiniuStorage.class);
 
     private final AuthService service = new AuthService(
-        users, encoder, jwt, sessions, codes, limiter, ipResolver, sensitive, signer,
+        users, encoder, jwt, sessions, codes, limiter, ipResolver, sensitive, signer, storage,
         new RateLimitProperties(10, Duration.ofMinutes(15), 5, Duration.ofMinutes(15), 5));
 
     @Test

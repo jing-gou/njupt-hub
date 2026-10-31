@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -102,6 +104,16 @@ public class AuthController {
             "message", "资料更新成功",
             "token", result.token(),
             "user", result.user()));
+    }
+
+    @PostMapping("/avatar")
+    public ResponseEntity<Map<String, Object>> uploadAvatar(
+        @AuthenticationPrincipal JwtPrincipal principal,
+        @RequestParam(value = "avatar", required = false) MultipartFile file
+    ) {
+        return ResponseEntity.ok(Map.of(
+            "message", "头像更新成功",
+            "user", authService.uploadAvatar(principal.userId(), file)));
     }
 
     @PatchMapping("/password")
