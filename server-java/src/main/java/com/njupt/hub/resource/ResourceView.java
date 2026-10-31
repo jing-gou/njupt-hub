@@ -1,6 +1,6 @@
 package com.njupt.hub.resource;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record ResourceView(
     Integer id,
@@ -9,17 +9,17 @@ public record ResourceView(
     String fileUrl,
     String course,
     Integer downloadCount,
-    LocalDateTime createdAt,
+    Instant createdAt,
     Integer uploaderId,
     String status,
-    LocalDateTime updatedAt,
+    Instant updatedAt,
     String category,
     String fileKey,
     String fileName,
     Integer fileSize,
     String mimeType,
-    LocalDateTime thankYouEmailSentAt,
-    LocalDateTime reviewResultEmailSentAt,
+    Instant thankYouEmailSentAt,
+    Instant reviewResultEmailSentAt,
     String reviewResultEmailStatus,
     UploaderView uploader
 ) {

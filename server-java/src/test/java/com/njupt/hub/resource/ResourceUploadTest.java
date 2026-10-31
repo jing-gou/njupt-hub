@@ -10,6 +10,7 @@ import com.njupt.hub.support.FullStackTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.web.servlet.MultipartProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
@@ -38,6 +39,9 @@ class ResourceUploadTest extends FullStackTestBase {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    MultipartProperties multipartProperties;
+
     @MockitoBean
     QiniuStorage storage;
 
@@ -52,6 +56,8 @@ class ResourceUploadTest extends FullStackTestBase {
                 String key = prefix + "/" + subPath + "/" + UUID.randomUUID() + "-" + name;
                 return new QiniuStorage.UploadResult(key, "https://kodo.test/" + key);
             });
+        when(storage.rawUrl(anyString())).thenAnswer(invocation ->
+            "https://kodo.test/" + invocation.getArgument(0));
     }
 
     @Test
@@ -105,6 +111,41 @@ class ResourceUploadTest extends FullStackTestBase {
         mvc.perform(multipart("/api/resources/upload").param("course", "高等数学"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("文件是必填项"));
+    }
+
+    @Test
+    void multipart_limits_match_node() {
+        assertThat(multipartProperties.getMaxFileSize().toBytes()).isEqualTo(150L * 1024 * 1024);
+    }
+
+    @Test
+    void rejects_more_than_30_files() throws Exception {
+        var request = multipart("/api/resources/upload");
+        request.param("course", "高等数学");
+        for (int index = 0; index < 31; index++) {
+            request.file(new MockMultipartFile(
+                "files", "file" + index + ".txt", "text/plain", "x".getBytes(StandardCharsets.UTF_8)));
+        }
+
+        mvc.perform(request)
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("文件数量超过上限"));
+    }
+
+    @Test
+    void guest_is_created_when_missing() throws Exception {
+        jdbc.update("DELETE FROM `User` WHERE username = '游客'");
+        MockMultipartFile file = new MockMultipartFile(
+            "files", "guest.txt", "text/plain", "guest".getBytes(StandardCharsets.UTF_8));
+
+        mvc.perform(multipart("/api/resources/upload")
+                .file(file)
+                .param("course", "大学物理"))
+            .andExpect(status().isCreated());
+
+        Integer guests = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM `User` WHERE username = '游客'", Integer.class);
+        assertThat(guests).isEqualTo(1);
     }
 
     @Test

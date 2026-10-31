@@ -40,6 +40,8 @@ class ResourceListTest extends FullStackTestBase {
             .andExpect(jsonPath("$.items[0].id").value(2005))
             .andExpect(jsonPath("$.items[0].uploader.username").value("bob"))
             .andExpect(jsonPath("$.items[0].uploader.email").value("bob@example.com"))
+            .andExpect(jsonPath("$.items[0].createdAt")
+                .value(org.hamcrest.Matchers.matchesPattern(".*Z$")))
             .andExpect(jsonPath("$.items[0].fileUrl")
                 .value("https://kodo.test/public/math/exam.pdf"));
     }

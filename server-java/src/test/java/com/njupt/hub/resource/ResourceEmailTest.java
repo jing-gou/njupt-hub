@@ -96,6 +96,11 @@ class ResourceEmailTest extends FullStackTestBase {
                 .content("{\"resourceIds\":[2001]}"))
             .andExpect(status().isBadGateway())
             .andExpect(jsonPath("$.message").value("资料上传成功，但感谢邮件暂时发送失败"));
+
+        Integer marked = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM `Resource` WHERE id = 2001 AND thankYouEmailSentAt IS NOT NULL",
+            Integer.class);
+        assertThat(marked).isZero();
     }
 
     @Test

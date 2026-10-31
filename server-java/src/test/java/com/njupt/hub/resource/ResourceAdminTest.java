@@ -21,7 +21,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -113,6 +115,54 @@ class ResourceAdminTest extends FullStackTestBase {
         Integer afterRepeat = jdbc.queryForObject(
             "SELECT experience FROM `User` WHERE id = 1002", Integer.class);
         assertThat(afterRepeat).isEqualTo(90);
+        verify(mailService, times(1)).sendResourceReviewResultEmail(anyString(), anyString(), any());
+    }
+
+    @Test
+    void move_failure_does_not_block_status_update() throws Exception {
+        String token = login("admin", "Password123");
+        org.mockito.Mockito.doThrow(new IllegalStateException("qiniu down"))
+            .when(storage).move(anyString(), anyString());
+
+        mvc.perform(patch("/api/resources/2002/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"APPROVED\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    @Test
+    void guest_resource_approval_does_not_add_experience() throws Exception {
+        String token = login("admin", "Password123");
+
+        mvc.perform(patch("/api/resources/2004/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"APPROVED\"}"))
+            .andExpect(status().isOk());
+
+        Integer guestExperience = jdbc.queryForObject(
+            "SELECT experience FROM `User` WHERE id = 1004", Integer.class);
+        assertThat(guestExperience).isEqualTo(50);
+    }
+
+    @Test
+    void meta_rejects_empty_title_and_missing_resource() throws Exception {
+        String token = login("admin", "Password123");
+
+        mvc.perform(patch("/api/resources/2001/meta")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"  \"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("标题不能为空"));
+
+        mvc.perform(patch("/api/resources/999999/meta")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"x\"}"))
+            .andExpect(status().isNotFound());
     }
 
     @Test

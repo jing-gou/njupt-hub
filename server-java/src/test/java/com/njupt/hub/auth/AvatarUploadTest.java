@@ -81,6 +81,21 @@ class AvatarUploadTest extends FullStackTestBase {
     }
 
     @Test
+    void old_avatar_delete_failure_does_not_block_update() throws Exception {
+        String token = login("alice", "Password123");
+        org.mockito.Mockito.doThrow(new IllegalStateException("qiniu down"))
+            .when(storage).delete(anyString());
+        MockMultipartFile file = new MockMultipartFile(
+            "avatar", "avatar.png", "image/png", "png".getBytes(StandardCharsets.UTF_8));
+
+        mvc.perform(multipart("/api/auth/avatar").file(file)
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user.avatarUrl")
+                .value("https://kodo.test/assets/avatars/new-avatar.png"));
+    }
+
+    @Test
     void missing_file_returns_400() throws Exception {
         String token = login("alice", "Password123");
 

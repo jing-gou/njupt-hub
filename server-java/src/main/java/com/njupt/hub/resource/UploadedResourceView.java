@@ -1,6 +1,6 @@
 package com.njupt.hub.resource;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record UploadedResourceView(
     Integer id,
@@ -12,6 +12,6 @@ public record UploadedResourceView(
     String fileName,
     Integer fileSize,
     String mimeType,
-    LocalDateTime createdAt
+    Instant createdAt
 ) {
 }

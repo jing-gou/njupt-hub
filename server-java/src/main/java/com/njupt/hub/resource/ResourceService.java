@@ -2,7 +2,9 @@ package com.njupt.hub.resource;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -21,7 +23,6 @@ import com.njupt.hub.common.api.ApiException;
 import com.njupt.hub.resource.storage.QiniuStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -190,7 +191,7 @@ public class ResourceService {
             LocalDateTime now = LocalDateTime.now();
             Resource resource = new Resource();
             resource.setTitle(String.valueOf(title));
-            resource.setFileUrl(uploaded.url());
+            resource.setFileUrl(storage.rawUrl(uploaded.key()));
             resource.setFileKey(uploaded.key());
             resource.setFileName(normalizedPath);
             resource.setFileSize((int) file.getSize());
@@ -214,7 +215,7 @@ public class ResourceService {
                 resource.getFileName(),
                 resource.getFileSize(),
                 resource.getMimeType(),
-                resource.getCreatedAt()));
+                toInstant(resource.getCreatedAt())));
         }
 
         return created;
@@ -237,12 +238,12 @@ public class ResourceService {
 
     @Transactional
     public DownloadCount incrementDownload(long id) {
-        Resource resource = findResource(id);
-        int next = (resource.getDownloadCount() == null ? 0 : resource.getDownloadCount()) + 1;
+        findResource(id);
         resources.update(null, new LambdaUpdateWrapper<Resource>()
             .eq(Resource::getId, id)
-            .set(Resource::getDownloadCount, next));
-        return new DownloadCount(id, next);
+            .setSql("downloadCount = downloadCount + 1"));
+        Resource updated = resources.selectById(id);
+        return new DownloadCount(id, updated.getDownloadCount());
     }
 
     @Transactional
@@ -296,16 +297,17 @@ public class ResourceService {
                 .setSql("experience = experience + 10"));
         }
 
-        ReviewNotification notification = maybeSendReviewResultEmail(resource, status);
-        return new StatusResult(toView(resource, users.selectById(resource.getUploaderId())),
-            notification);
+        return new StatusResult(toView(resource, users.selectById(resource.getUploaderId())), null);
     }
 
-    @Transactional
+    public ReviewNotification notifyReviewResult(long id, String status) {
+        return maybeSendReviewResultEmail(findResource(id), status);
+    }
+
     public ThankYouResult sendThankYou(long userId, List<Long> resourceIds, String ip) {
         if (!rateLimiter.tryAcquire("thank-you", ip == null ? "unknown" : ip,
             10, Duration.ofMinutes(15))) {
-            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试");
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "感谢邮件请求过于频繁，请稍后再试");
         }
 
         List<Integer> ids = new ArrayList<>();
@@ -450,19 +452,12 @@ public class ResourceService {
             return guest;
         }
 
-        guest = new User();
-        guest.setUsername("游客");
-        guest.setPassword("guest-no-password");
-        guest.setEmail("guest@njupt.hub");
-        guest.setRole("USER");
-        guest.setExperience(0);
-        try {
-            users.insert(guest);
-            return guest;
-        } catch (DuplicateKeyException ex) {
-            return users.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, "游客"));
+        users.insertGuestIgnore();
+        guest = users.selectGuestForUpdate();
+        if (guest == null) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "游客用户创建失败");
         }
+        return guest;
     }
 
     private String normalizeCourse(String course) {
@@ -486,6 +481,10 @@ public class ResourceService {
         return value == null || value.isBlank();
     }
 
+    private Instant toInstant(LocalDateTime value) {
+        return value == null ? null : value.toInstant(ZoneOffset.UTC);
+    }
+
     private ResourceView toView(Resource resource, User uploader) {
         String key = resource.getFileKey() != null ? resource.getFileKey() : resource.getFileUrl();
         ResourceView.UploaderView uploaderView = uploader == null ? null
@@ -502,17 +501,17 @@ public class ResourceService {
             signer.getSignedUrl(key),
             resource.getCourse(),
             resource.getDownloadCount(),
-            resource.getCreatedAt(),
+            toInstant(resource.getCreatedAt()),
             resource.getUploaderId(),
             resource.getStatus(),
-            resource.getUpdatedAt(),
+            toInstant(resource.getUpdatedAt()),
             resource.getCategory(),
             resource.getFileKey(),
             resource.getFileName(),
             resource.getFileSize(),
             resource.getMimeType(),
-            resource.getThankYouEmailSentAt(),
-            resource.getReviewResultEmailSentAt(),
+            toInstant(resource.getThankYouEmailSentAt()),
+            toInstant(resource.getReviewResultEmailSentAt()),
             resource.getReviewResultEmailStatus(),
             uploaderView);
     }

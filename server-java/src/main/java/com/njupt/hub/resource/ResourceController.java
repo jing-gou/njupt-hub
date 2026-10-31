@@ -126,12 +126,14 @@ public class ResourceController {
         @PathVariable String id,
         @RequestBody(required = false) StatusRequest request
     ) {
-        StatusResult result = resourceService.updateStatus(
-            parseId(id), request == null ? null : request.status());
+        long resourceId = parseId(id);
+        String status = request == null ? null : request.status();
+        StatusResult result = resourceService.updateStatus(resourceId, status);
+        ReviewNotification notification = resourceService.notifyReviewResult(resourceId, status);
         Map<String, Object> body = objectMapper.convertValue(
             result.resource(), new TypeReference<>() {
             });
-        body.put("reviewNotification", result.notification());
+        body.put("reviewNotification", notification);
         return ResponseEntity.ok(body);
     }
 
