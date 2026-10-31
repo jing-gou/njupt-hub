@@ -1,1 +1,80 @@
-{"name":"auth-leaderboard","method":"GET","path":"/api/auth/leaderboard","headers":{},"seed":["users.sql"],"expected":{"status":200,"json":{"items":[{"rank":1,"id":"<masked>","username":"admin","role":"ADMIN","experience":300,"avatarUrl":"<masked>","level":4,"nextLevelExp":400,"levelProgress":0,"levelProgressTotal":100},{"rank":2,"id":"<masked>","username":"alice","role":"USER","experience":120,"avatarUrl":"<masked>","level":2,"nextLevelExp":200,"levelProgress":20,"levelProgressTotal":100},{"rank":3,"id":"<masked>","username":"bob","role":"USER","experience":80,"avatarUrl":"<masked>","level":1,"nextLevelExp":100,"levelProgress":80,"levelProgressTotal":100},{"rank":4,"id":"<masked>","username":"charlie","role":"USER","experience":60,"avatarUrl":"<masked>","level":1,"nextLevelExp":100,"levelProgress":60,"levelProgressTotal":100}]}},"ignorePaths":["/items/*/id","/items/*/avatarUrl"]}
+{
+  "name": "auth-leaderboard",
+  "method": "GET",
+  "path": "/api/auth/leaderboard",
+  "headers": {},
+  "seed": ["users.sql"],
+  "expected": {
+    "status": 200,
+    "json": {
+      "items": [
+        {
+          "rank": 1,
+          "id": "<masked>",
+          "username": "admin",
+          "role": "ADMIN",
+          "experience": 300,
+          "avatarKey": null,
+          "avatarUrl": "<masked>",
+          "level": 4,
+          "nextLevelExp": 400,
+          "levelProgress": 0,
+          "levelProgressTotal": 100
+        },
+        {
+          "rank": 2,
+          "id": "<masked>",
+          "username": "alice",
+          "role": "USER",
+          "experience": 120,
+          "avatarKey": "assets/avatars/alice.png",
+          "avatarUrl": "<masked>",
+          "level": 2,
+          "nextLevelExp": 200,
+          "levelProgress": 20,
+          "levelProgressTotal": 100
+        },
+        {
+          "rank": 3,
+          "id": "<masked>",
+          "username": "bob",
+          "role": "USER",
+          "experience": 80,
+          "avatarKey": null,
+          "avatarUrl": "<masked>",
+          "level": 1,
+          "nextLevelExp": 100,
+          "levelProgress": 80,
+          "levelProgressTotal": 100
+        },
+        {
+          "rank": 4,
+          "id": "<masked>",
+          "username": "charlie",
+          "role": "USER",
+          "experience": 60,
+          "avatarKey": null,
+          "avatarUrl": "<masked>",
+          "level": 1,
+          "nextLevelExp": 100,
+          "levelProgress": 60,
+          "levelProgressTotal": 100
+        },
+        {
+          "rank": 5,
+          "id": "<masked>",
+          "username": "dave",
+          "role": "USER",
+          "experience": -50,
+          "avatarKey": null,
+          "avatarUrl": "<masked>",
+          "level": 0,
+          "nextLevelExp": 0,
+          "levelProgress": 50,
+          "levelProgressTotal": 100
+        }
+      ]
+    }
+  },
+  "ignorePaths": ["/items/*/id", "/items/*/avatarUrl"]
+}

@@ -11,6 +11,7 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -35,7 +36,7 @@ class VerificationCodeServiceTest {
 
     @Test
     void verify_delegates_to_store() {
-        when(store.verify(CodeType.RESET, "alice@example.com", "123456"))
+        when(store.verify(CodeType.RESET, "alice@example.com", "123456", true))
             .thenReturn(VerifyResult.OK);
 
         assertThat(service.verify(CodeType.RESET, "alice@example.com", "123456"))
@@ -44,10 +45,20 @@ class VerificationCodeServiceTest {
 
     @Test
     void redis_failure_is_fail_closed_with_503() {
-        when(store.verify(any(), anyString(), anyString()))
+        when(store.verify(any(), anyString(), anyString(), anyBoolean()))
             .thenThrow(new DataAccessResourceFailureException("redis down"));
 
         assertThatThrownBy(() -> service.verify(CodeType.VERIFICATION, "a@b.com", "123456"))
+            .isInstanceOf(ApiException.class)
+            .hasMessage("服务暂时不可用，请稍后重试");
+    }
+
+    @Test
+    void send_fails_closed_when_redis_is_down() {
+        org.mockito.Mockito.doThrow(new DataAccessResourceFailureException("redis down"))
+            .when(store).save(any(), anyString(), anyString());
+
+        assertThatThrownBy(() -> service.send(CodeType.VERIFICATION, "a@b.com"))
             .isInstanceOf(ApiException.class)
             .hasMessage("服务暂时不可用，请稍后重试");
     }

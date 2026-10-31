@@ -2,6 +2,7 @@ package com.njupt.hub.auth.security;
 
 import com.njupt.hub.auth.token.JwtService;
 import com.njupt.hub.auth.token.SessionService;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -56,6 +57,16 @@ public class SecurityConfig {
         SessionService sessionService
     ) {
         return new JwtAuthenticationFilter(jwtService, sessionService);
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(
+        JwtAuthenticationFilter filter
+    ) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration =
+            new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

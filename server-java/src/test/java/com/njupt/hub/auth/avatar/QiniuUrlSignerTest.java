@@ -47,5 +47,14 @@ class QiniuUrlSignerTest {
     void normalizes_stored_url_to_key() {
         assertThat(QiniuUrlSigner.normalizeStoredFileKey(
             "https://kodo.test/assets/a%20b.png")).isEqualTo("assets/a b.png");
+        assertThat(QiniuUrlSigner.normalizeStoredFileKey(
+            "https://kodo.test/assets/a+b.png")).isEqualTo("assets/a+b.png");
+    }
+
+    @Test
+    void does_not_double_encode_encoded_url_paths() {
+        assertThat(publicSigner.getSignedUrl(
+            "https://kodo.test/assets/%E4%B8%AD%E6%96%87%20a+b.png"))
+            .isEqualTo("https://kodo.test/assets/%E4%B8%AD%E6%96%87%20a+b.png");
     }
 }

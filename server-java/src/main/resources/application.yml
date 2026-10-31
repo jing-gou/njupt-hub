@@ -1,8 +1,12 @@
 server:
   port: 3000
+  forward-headers-strategy: none
   error:
     include-message: never
     include-stacktrace: never
+
+app:
+  trusted-proxies: ${TRUSTED_PROXIES:127.0.0.1,::1}
 
 spring:
   application:
@@ -31,12 +35,19 @@ spring:
     properties:
       mail.smtp.auth: true
       mail.smtp.ssl.enable: ${SMTP_SECURE:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
       mail.smtp.ssl.trust: "*"
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
 auth:
   jwt:
     secret: ${JWT_SECRET:}
     ttl: 7d
+  code:
+    ttl: 5m
+    cache-ttl: 6m
   rate-limit:
     login-limit: 10
     login-window: 15m

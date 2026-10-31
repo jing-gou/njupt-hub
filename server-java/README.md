@@ -1,6 +1,6 @@
 # NJUPT Hub — Java 后端
 
-Batch 0：Spring Boot 骨架、契约回放与敏感词模块。现有 Node 后端仍在 `server/`，前端不改。
+Batch 0/1：Spring Boot 骨架、契约回放、敏感词模块，以及认证 + Redis 会话。现有 Node 后端仍在 `server/`，前端不改。
 
 ## 环境
 

@@ -2,6 +2,9 @@ auth:
   jwt:
     secret: test-secret-please-change-32-bytes-min
     ttl: 7d
+  code:
+    ttl: 3s
+    cache-ttl: 5s
   rate-limit:
     login-limit: 10
     login-window: 15m

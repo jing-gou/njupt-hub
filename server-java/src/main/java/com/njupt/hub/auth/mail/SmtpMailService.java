@@ -23,6 +23,7 @@ public class SmtpMailService implements MailService {
         @Value("${spring.mail.password:}") String password,
         @Value("${spring.mail.properties.mail.smtp.auth:true}") boolean auth,
         @Value("${spring.mail.properties.mail.smtp.ssl.enable:true}") boolean ssl,
+        @Value("${SMTP_STARTTLS:false}") boolean starttls,
         @Value("${SMTP_FROM:${spring.mail.username:}}") String from
     ) {
         this.sender = new JavaMailSenderImpl();
@@ -34,7 +35,11 @@ public class SmtpMailService implements MailService {
         Properties properties = this.sender.getJavaMailProperties();
         properties.put("mail.smtp.auth", Boolean.toString(auth));
         properties.put("mail.smtp.ssl.enable", Boolean.toString(ssl));
+        properties.put("mail.smtp.starttls.enable", Boolean.toString(starttls));
         properties.put("mail.smtp.ssl.trust", "*");
+        properties.put("mail.smtp.connectiontimeout", "5000");
+        properties.put("mail.smtp.timeout", "5000");
+        properties.put("mail.smtp.writetimeout", "5000");
 
         this.from = from == null || from.isBlank() ? username : from;
     }

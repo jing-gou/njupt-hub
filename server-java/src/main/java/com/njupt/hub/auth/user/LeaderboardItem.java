@@ -6,6 +6,7 @@ public record LeaderboardItem(
     String username,
     String role,
     int experience,
+    String avatarKey,
     String avatarUrl,
     int level,
     int nextLevelExp,

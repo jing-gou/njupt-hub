@@ -9,7 +9,7 @@ public final class ExperienceCalculator {
 
     public static UserView toView(User user, QiniuUrlSigner signer) {
         int experience = user.getExperience() == null ? 0 : user.getExperience();
-        int level = experience / 100 + 1;
+        int level = Math.floorDiv(experience, 100) + 1;
         return new UserView(
             user.getId(),
             user.getUsername(),
@@ -25,13 +25,14 @@ public final class ExperienceCalculator {
 
     public static LeaderboardItem toLeaderboard(User user, int rank, QiniuUrlSigner signer) {
         int experience = user.getExperience() == null ? 0 : user.getExperience();
-        int level = experience / 100 + 1;
+        int level = Math.floorDiv(experience, 100) + 1;
         return new LeaderboardItem(
             rank,
             user.getId(),
             user.getUsername(),
             user.getRole(),
             experience,
+            user.getAvatarKey(),
             signer.getSignedUrl(user.getAvatarKey()),
             level,
             level * 100,

@@ -36,8 +36,20 @@ public class VerificationCodeService {
     }
 
     public VerifyResult verify(CodeType type, String email, String code) {
+        return verify(type, email, code, true);
+    }
+
+    public VerifyResult verify(CodeType type, String email, String code, boolean consumeOnSuccess) {
         try {
-            return store.verify(type, email, code);
+            return store.verify(type, email, code, consumeOnSuccess);
+        } catch (DataAccessException ex) {
+            throw unavailable();
+        }
+    }
+
+    public void consume(CodeType type, String email) {
+        try {
+            store.delete(type, email);
         } catch (DataAccessException ex) {
             throw unavailable();
         }

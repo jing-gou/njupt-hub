@@ -1,7 +1,6 @@
 package com.njupt.hub.auth.avatar;
 
 import java.net.URI;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -30,9 +29,15 @@ public class QiniuUrlSigner {
         this.protocol = "http".equalsIgnoreCase(properties.protocol()) ? "http" : "https";
         this.domain = normalizeDomain(properties.domain());
         List<String> legacy = properties.legacyDomains();
-        this.legacyDomains = legacy == null || legacy.isEmpty()
+        List<String> normalizedLegacy = legacy == null
+            ? List.of()
+            : legacy.stream()
+                .map(this::normalizeDomain)
+                .filter(value -> value != null && !value.isBlank())
+                .toList();
+        this.legacyDomains = normalizedLegacy.isEmpty()
             ? List.of("kodo.sugarfun.xyz")
-            : legacy.stream().map(this::normalizeDomain).toList();
+            : normalizedLegacy;
     }
 
     public String getSignedUrl(String fileKey) {
@@ -49,8 +54,8 @@ public class QiniuUrlSigner {
                 URI uri = URI.create(raw);
                 String host = uri.getHost();
                 if (host == null || (domain != null && host.equals(domain)) || legacyDomains.contains(host)) {
-                    String path = uri.getPath() == null ? "" : uri.getPath();
-                    String key = path.replaceFirst("^/+", "");
+                    String path = uri.getRawPath() == null ? "" : uri.getRawPath();
+                    String key = UriUtils.decode(path.replaceFirst("^/+", ""), StandardCharsets.UTF_8);
                     return sign(key, expires);
                 }
                 return raw;
@@ -72,8 +77,8 @@ public class QiniuUrlSigner {
         if (raw.contains("://")) {
             try {
                 URI uri = URI.create(raw);
-                String path = uri.getPath() == null ? "" : uri.getPath();
-                return URLDecoder.decode(path.replaceFirst("^/+", ""), StandardCharsets.UTF_8);
+                String path = uri.getRawPath() == null ? "" : uri.getRawPath();
+                return UriUtils.decode(path.replaceFirst("^/+", ""), StandardCharsets.UTF_8);
             } catch (IllegalArgumentException ex) {
                 return raw.replaceFirst("^/+", "");
             }

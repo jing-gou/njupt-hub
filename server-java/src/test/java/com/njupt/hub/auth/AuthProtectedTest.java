@@ -4,6 +4,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.njupt.hub.auth.code.CodeType;
+import com.njupt.hub.auth.code.VerificationCodeStore;
 import com.njupt.hub.contract.ContractSeeder;
 import com.njupt.hub.support.FullStackTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +40,9 @@ class AuthProtectedTest extends FullStackTestBase {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    VerificationCodeStore codeStore;
 
     @BeforeEach
     void setUp() {
@@ -85,6 +90,27 @@ class AuthProtectedTest extends FullStackTestBase {
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + nextToken))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.user.username").value("newuser"));
+    }
+
+    @Test
+    void weak_password_does_not_consume_reset_code() throws Exception {
+        codeStore.save(CodeType.RESET, "alice@example.com", "123456");
+
+        mvc.perform(post("/api/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"email":"alice@example.com","code":"123456","newPassword":"weak"}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("密码必须至少为8位，且包含字母和数字"));
+
+        mvc.perform(post("/api/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"email":"alice@example.com","code":"123456","newPassword":"NewPassword123"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("密码重置成功"));
     }
 
     private String login(String username, String password) throws Exception {

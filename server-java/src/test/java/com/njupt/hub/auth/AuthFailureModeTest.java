@@ -37,9 +37,11 @@ class AuthFailureModeTest {
             .thenThrow(new DataAccessResourceFailureException("redis down"));
 
         RateLimiter limiter = new RateLimiter(redis);
+        Duration window = Duration.ofMinutes(1);
 
-        assertThat(limiter.tryAcquire("login", "ip|alice", 1, Duration.ofMinutes(1)))
-            .isTrue();
+        assertThat(limiter.tryAcquire("login", "ip|alice", 1, window)).isTrue();
+        assertThat(limiter.tryAcquire("login", "ip|alice", 1, window)).isFalse();
+        assertThat(limiter.tryAcquire("login", "ip|bob", 1, window)).isTrue();
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.njupt.hub.contract;
 
+import java.sql.Connection;
 import java.util.List;
 
 import javax.sql.DataSource;
@@ -19,10 +20,15 @@ public class ContractSeeder {
     }
 
     public void apply(List<String> seeds) {
-        for (String seed : seeds) {
-            ScriptUtils.executeSqlScript(
-                DataSourceUtils.getConnection(dataSource),
-                new ClassPathResource("contract/seed/" + seed));
+        Connection connection = DataSourceUtils.getConnection(dataSource);
+        try {
+            for (String seed : seeds) {
+                ScriptUtils.executeSqlScript(
+                    connection,
+                    new ClassPathResource("contract/seed/" + seed));
+            }
+        } finally {
+            DataSourceUtils.releaseConnection(connection, dataSource);
         }
     }
 }

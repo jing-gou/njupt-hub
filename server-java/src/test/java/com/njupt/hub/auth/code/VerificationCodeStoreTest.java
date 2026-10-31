@@ -46,11 +46,9 @@ class VerificationCodeStoreTest extends FullStackTestBase {
     }
 
     @Test
-    void reports_expired_code() {
+    void reports_expired_code_while_cache_is_still_present() throws Exception {
         store.save(CodeType.RESET, "alice@example.com", "123456");
-        redis.opsForHash().put(
-            VerificationCodeStore.codeKey(CodeType.RESET, "alice@example.com"),
-            "expiresAt", "1");
+        Thread.sleep(3_200);
 
         assertThat(store.verify(CodeType.RESET, "alice@example.com", "123456"))
             .isEqualTo(VerifyResult.EXPIRED);

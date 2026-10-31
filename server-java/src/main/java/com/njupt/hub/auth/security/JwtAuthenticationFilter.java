@@ -55,7 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             JwtPrincipal principal = jwtService.parse(parts[1]);
-            if (principal.jti() != null) {
+            if (!principal.legacy()) {
                 try {
                     if (!sessionService.isActive(principal.userId(), principal.jti())) {
                         request.setAttribute(AUTH_ERROR_ATTRIBUTE, "无效的令牌");
@@ -73,7 +73,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_" + principal.role())));
             SecurityContextHolder.getContext().setAuthentication(authentication);
-        } catch (JWTVerificationException ex) {
+        } catch (JWTVerificationException | IllegalArgumentException ex) {
             request.setAttribute(AUTH_ERROR_ATTRIBUTE, "无效的令牌");
         }
 

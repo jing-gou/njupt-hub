@@ -14,7 +14,6 @@ import com.njupt.hub.auth.code.VerifyResult;
 import com.njupt.hub.auth.config.RateLimitProperties;
 import com.njupt.hub.auth.limit.ClientIpResolver;
 import com.njupt.hub.auth.limit.RateLimiter;
-import com.njupt.hub.auth.mail.MailService;
 import com.njupt.hub.auth.token.JwtService;
 import com.njupt.hub.auth.token.SessionService;
 import com.njupt.hub.auth.user.ExperienceCalculator;
@@ -44,7 +43,6 @@ public class AuthService {
     private final RateLimiter rateLimiter;
     private final ClientIpResolver ipResolver;
     private final SensitiveWordFilter sensitiveWords;
-    private final MailService mailService;
     private final QiniuUrlSigner urlSigner;
     private final RateLimitProperties rateLimits;
 
@@ -57,7 +55,6 @@ public class AuthService {
         RateLimiter rateLimiter,
         ClientIpResolver ipResolver,
         SensitiveWordFilter sensitiveWords,
-        MailService mailService,
         QiniuUrlSigner urlSigner,
         RateLimitProperties rateLimits
     ) {
@@ -69,7 +66,6 @@ public class AuthService {
         this.rateLimiter = rateLimiter;
         this.ipResolver = ipResolver;
         this.sensitiveWords = sensitiveWords;
-        this.mailService = mailService;
         this.urlSigner = urlSigner;
         this.rateLimits = rateLimits;
     }
@@ -106,7 +102,7 @@ public class AuthService {
             throw badRequest("用户名包含敏感词，请修改后重试");
         }
 
-        verifyCode(CodeType.VERIFICATION, email, code);
+        verifyCode(CodeType.VERIFICATION, email, code, true);
 
         if (!email.matches(EMAIL_PATTERN)) {
             throw badRequest("邮箱格式不正确");
@@ -256,7 +252,7 @@ public class AuthService {
             throw badRequest("邮箱、重置码和新密码均为必填项");
         }
 
-        verifyCode(CodeType.RESET, email, code);
+        verifyCode(CodeType.RESET, email, code, false);
         if (!newPassword.matches(PASSWORD_PATTERN)) {
             throw badRequest("密码必须至少为8位，且包含字母和数字");
         }
@@ -269,10 +265,11 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(newPassword));
         users.updateById(user);
         sessions.revokeAll(user.getId());
+        codes.consume(CodeType.RESET, email);
     }
 
-    private void verifyCode(CodeType type, String email, String code) {
-        VerifyResult result = codes.verify(type, email, code);
+    private void verifyCode(CodeType type, String email, String code, boolean consumeOnSuccess) {
+        VerifyResult result = codes.verify(type, email, code, consumeOnSuccess);
         switch (result) {
             case OK -> {
             }

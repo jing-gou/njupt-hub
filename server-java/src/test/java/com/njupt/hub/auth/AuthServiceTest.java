@@ -9,7 +9,6 @@ import com.njupt.hub.auth.code.VerifyResult;
 import com.njupt.hub.auth.config.RateLimitProperties;
 import com.njupt.hub.auth.limit.ClientIpResolver;
 import com.njupt.hub.auth.limit.RateLimiter;
-import com.njupt.hub.auth.mail.MailService;
 import com.njupt.hub.auth.token.JwtService;
 import com.njupt.hub.auth.token.SessionService;
 import com.njupt.hub.auth.user.User;
@@ -36,16 +35,15 @@ class AuthServiceTest {
     private final RateLimiter limiter = mock(RateLimiter.class);
     private final ClientIpResolver ipResolver = mock(ClientIpResolver.class);
     private final SensitiveWordFilter sensitive = mock(SensitiveWordFilter.class);
-    private final MailService mail = mock(MailService.class);
     private final QiniuUrlSigner signer = mock(QiniuUrlSigner.class);
 
     private final AuthService service = new AuthService(
-        users, encoder, jwt, sessions, codes, limiter, ipResolver, sensitive, mail, signer,
+        users, encoder, jwt, sessions, codes, limiter, ipResolver, sensitive, signer,
         new RateLimitProperties(10, Duration.ofMinutes(15), 5, Duration.ofMinutes(15), 5));
 
     @Test
     void register_rejects_weak_password() {
-        when(codes.verify(CodeType.VERIFICATION, "a@b.com", "123456"))
+        when(codes.verify(CodeType.VERIFICATION, "a@b.com", "123456", true))
             .thenReturn(VerifyResult.OK);
         when(sensitive.contains("alice")).thenReturn(false);
         when(users.selectOne(any())).thenReturn(null);
@@ -90,8 +88,22 @@ class AuthServiceTest {
     }
 
     @Test
+    void register_fails_closed_when_redis_is_down() {
+        when(sensitive.contains("newuser")).thenReturn(false);
+        when(codes.verify(CodeType.VERIFICATION, "new@example.com", "123456", true))
+            .thenThrow(new ApiException(
+                org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                "服务暂时不可用，请稍后重试"));
+
+        assertThatThrownBy(() -> service.register(
+            new RegisterRequest("newuser", "Password123", "new@example.com", "123456")))
+            .isInstanceOf(ApiException.class)
+            .hasMessage("服务暂时不可用，请稍后重试");
+    }
+
+    @Test
     void register_success_hashes_password_and_returns_view() {
-        when(codes.verify(CodeType.VERIFICATION, "new@example.com", "123456"))
+        when(codes.verify(CodeType.VERIFICATION, "new@example.com", "123456", true))
             .thenReturn(VerifyResult.OK);
         when(sensitive.contains("newuser")).thenReturn(false);
         when(users.selectOne(any())).thenReturn(null);
