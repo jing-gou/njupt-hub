@@ -4,7 +4,6 @@ import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public record ReviewCreatedView(
     Integer id,
     Double rating,
@@ -17,7 +16,7 @@ public record ReviewCreatedView(
     String status,
     Integer itemId,
     Reviewer reviewer,
-    String message
+    @JsonInclude(JsonInclude.Include.NON_NULL) String message
 ) {
 
     public record Reviewer(String username) {

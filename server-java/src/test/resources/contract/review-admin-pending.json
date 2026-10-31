@@ -1,0 +1,39 @@
+{
+  "name": "review-admin-pending",
+  "method": "GET",
+  "path": "/api/reviews/admin/pending-reviews",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "admin",
+  "expected": {
+    "status": 200,
+    "json": [
+      {
+        "id": 4002,
+        "rating": 4,
+        "comment": " pending review",
+        "ip": "127.0.0.1",
+        "createdAt": "2026-10-31T16:35:37.715Z",
+        "reviewerId": 1002,
+        "updatedAt": "2026-10-31T18:35:37.715Z",
+        "imageUrl": "",
+        "status": "PENDING",
+        "itemId": 3001,
+        "reviewer": {
+          "username": "bob"
+        },
+        "item": {
+          "title": "张老师",
+          "type": "MENTOR"
+        }
+      }
+    ]
+  },
+  "ignorePaths": [
+    "/*/createdAt",
+    "/*/updatedAt"
+  ]
+}

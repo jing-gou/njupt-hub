@@ -17,6 +17,6 @@ public record ReviewSummaryView(
     ReviewerSummary reviewer
 ) {
 
-    public record ReviewerSummary(String username, String avatarUrl) {
+    public record ReviewerSummary(String username, String avatarKey, String avatarUrl) {
     }
 }

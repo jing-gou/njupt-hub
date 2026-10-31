@@ -46,6 +46,12 @@ reset_db() {
       mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
       < "${JAVA_ROOT}/src/test/resources/contract/seed/resources.sql"
   fi
+
+  if [[ -f "${JAVA_ROOT}/src/test/resources/contract/seed/reviews.sql" ]]; then
+    docker compose -f "${COMPOSE_FILE}" exec -T mysql \
+      mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
+      < "${JAVA_ROOT}/src/test/resources/contract/seed/reviews.sql"
+  fi
 }
 
 (

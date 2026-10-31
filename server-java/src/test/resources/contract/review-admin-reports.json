@@ -1,0 +1,49 @@
+{
+  "name": "review-admin-reports",
+  "method": "GET",
+  "path": "/api/reviews/admin/reports",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "admin",
+  "expected": {
+    "status": 200,
+    "json": [
+      {
+        "id": 7001,
+        "reason": "内容不实",
+        "userId": 1003,
+        "reviewId": 4001,
+        "createdAt": "2026-10-31T18:35:39.308Z",
+        "user": {
+          "username": "admin"
+        },
+        "review": {
+          "id": 4001,
+          "rating": 5,
+          "comment": "讲得很清楚",
+          "ip": "127.0.0.1",
+          "createdAt": "2026-10-31T17:35:39.303Z",
+          "reviewerId": 1001,
+          "updatedAt": "2026-10-31T18:35:39.303Z",
+          "imageUrl": null,
+          "status": "APPROVED",
+          "itemId": 3001,
+          "reviewer": {
+            "username": "alice"
+          },
+          "item": {
+            "title": "张老师"
+          }
+        }
+      }
+    ]
+  },
+  "ignorePaths": [
+    "/*/createdAt",
+    "/*/review/createdAt",
+    "/*/review/updatedAt"
+  ]
+}

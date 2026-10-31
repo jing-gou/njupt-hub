@@ -2,7 +2,7 @@ package com.njupt.hub.review;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -238,7 +238,7 @@ public class ReviewService {
                     toInstant(review.getCreatedAt()),
                     review.getReviewerId(),
                     toInstant(review.getUpdatedAt()),
-                    signer.getSignedUrl(review.getImageUrl()),
+                    review.getImageUrl(),
                     review.getStatus(),
                     review.getItemId(),
                     new ReportView.Reviewer(reviewer == null ? null : reviewer.getUsername()),
@@ -715,7 +715,7 @@ public class ReviewService {
             return null;
         }
         return new ReviewSummaryView.ReviewerSummary(
-            user.getUsername(), signer.getSignedUrl(user.getAvatarKey()));
+            user.getUsername(), user.getAvatarKey(), signer.getSignedUrl(user.getAvatarKey()));
     }
 
     private Map<Integer, User> loadUsers(List<Integer> ids) {
@@ -731,6 +731,6 @@ public class ReviewService {
     }
 
     private Instant toInstant(LocalDateTime value) {
-        return value == null ? null : value.toInstant(ZoneOffset.UTC);
+        return value == null ? null : value.atZone(ZoneId.of("Asia/Shanghai")).toInstant();
     }
 }

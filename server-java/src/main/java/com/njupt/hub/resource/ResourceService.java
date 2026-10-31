@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -475,7 +475,7 @@ public class ResourceService {
     }
 
     private Instant toInstant(LocalDateTime value) {
-        return value == null ? null : value.toInstant(ZoneOffset.UTC);
+        return value == null ? null : value.atZone(ZoneId.of("Asia/Shanghai")).toInstant();
     }
 
     private ResourceView toView(Resource resource, User uploader) {

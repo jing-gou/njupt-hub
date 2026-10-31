@@ -27,5 +27,21 @@
   "resource-detail",
   "resource-download",
   "resource-meta",
-  "resource-thank-you"
+  "resource-thank-you",
+  "review-items",
+  "review-item-detail",
+  "review-submit-new",
+  "review-like",
+  "review-reply",
+  "review-report",
+  "review-own-update",
+  "review-own-delete",
+  "review-admin-pending",
+  "review-admin-status",
+  "review-admin-reports",
+  "review-admin-dismiss",
+  "review-item-create",
+  "review-item-update",
+  "review-item-delete",
+  "review-admin-delete"
 ]
