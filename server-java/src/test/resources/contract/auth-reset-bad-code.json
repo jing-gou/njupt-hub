@@ -1,0 +1,1 @@
+{"name":"auth-reset-bad-code","method":"POST","path":"/api/auth/reset-password","headers":{},"seed":["users.sql"],"presetCode":{"type":"reset","email":"alice@example.com","code":"123456"},"body":{"email":"alice@example.com","code":"000000","newPassword":"NewPassword123"},"expected":{"status":400,"json":{"message":"验证码不正确"}},"ignorePaths":[]}

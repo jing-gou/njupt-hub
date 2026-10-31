@@ -1,8 +1,12 @@
 server:
   port: 3000
+  forward-headers-strategy: none
   error:
     include-message: never
     include-stacktrace: never
+
+app:
+  trusted-proxies: ${TRUSTED_PROXIES:127.0.0.1,::1}
 
 spring:
   application:
@@ -17,6 +21,48 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 1
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASS:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: ${SMTP_SECURE:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+      mail.smtp.ssl.trust: "*"
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET:}
+    ttl: 7d
+  code:
+    ttl: 5m
+    cache-ttl: 6m
+  rate-limit:
+    login-limit: 10
+    login-window: 15m
+    code-limit: 5
+    code-window: 15m
+    code-max-attempts: 5
+
+qiniu:
+  access-key: ${QINIU_ACCESS_KEY:}
+  secret-key: ${QINIU_SECRET_KEY:}
+  bucket: ${QINIU_BUCKET:}
+  domain: ${QINIU_DOMAIN:}
+  protocol: ${QINIU_PROTOCOL:https}
+  private-bucket: ${QINIU_IS_PRIVATE:false}
+  legacy-domains: ${QINIU_LEGACY_DOMAINS:kodo.sugarfun.xyz}
 
 management:
   endpoints:
@@ -27,3 +73,10 @@ management:
 logging:
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{requestId:-}] %logger{36} - %msg%n"
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: false
+  global-config:
+    db-config:
+      table-underline: false

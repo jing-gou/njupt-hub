@@ -1,0 +1,1 @@
+{"name":"auth-register-duplicate-email","method":"POST","path":"/api/auth/register","headers":{},"seed":["users.sql"],"presetCode":{"type":"verification","email":"alice@example.com","code":"123456"},"body":{"username":"newuser","password":"Password123","email":"alice@example.com","code":"123456"},"expected":{"status":409,"json":{"message":"邮箱已被注册"}},"ignorePaths":[]}

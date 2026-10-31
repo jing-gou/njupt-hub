@@ -1,0 +1,1 @@
+{"name":"auth-send-reset-success","method":"POST","path":"/api/auth/send-reset-password-code","headers":{},"seed":["users.sql"],"body":{"email":"alice@example.com"},"expected":{"status":200,"json":{"message":"重置码已发送"}},"ignorePaths":[]}

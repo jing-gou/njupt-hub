@@ -1,0 +1,1 @@
+{"name":"auth-reset-success","method":"POST","path":"/api/auth/reset-password","headers":{},"seed":["users.sql"],"presetCode":{"type":"reset","email":"alice@example.com","code":"123456"},"body":{"email":"alice@example.com","code":"123456","newPassword":"NewPassword123"},"expected":{"status":200,"json":{"message":"密码重置成功"}},"ignorePaths":[]}

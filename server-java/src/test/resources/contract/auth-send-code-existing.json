@@ -1,0 +1,1 @@
+{"name":"auth-send-code-existing","method":"POST","path":"/api/auth/send-verification-code","headers":{},"seed":["users.sql"],"body":{"email":"alice@example.com"},"expected":{"status":409,"json":{"message":"邮箱已被注册"}},"ignorePaths":[]}
