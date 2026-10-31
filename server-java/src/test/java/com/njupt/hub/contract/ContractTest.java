@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.njupt.hub.auth.code.CodeType;
 import com.njupt.hub.auth.code.VerificationCodeStore;
 import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.resource.storage.QiniuStorage;
 import com.njupt.hub.support.FullStackTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,18 +20,24 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 @AutoConfigureMockMvc
 @Transactional
@@ -55,6 +62,9 @@ class ContractTest extends FullStackTestBase {
     @MockitoBean
     MailService mailService;
 
+    @MockitoBean
+    QiniuStorage storage;
+
     static Stream<ContractCase> cases() throws IOException {
         Resource[] resources = new PathMatchingResourcePatternResolver()
             .getResources("classpath:contract/*.json");
@@ -73,6 +83,18 @@ class ContractTest extends FullStackTestBase {
     @BeforeEach
     void cleanRedis() {
         redis.getConnectionFactory().getConnection().serverCommands().flushDb();
+        when(storage.upload(any(), anyString(), anyString(), anyString(), any()))
+            .thenAnswer(invocation -> {
+                String name = invocation.getArgument(1);
+                String prefix = invocation.getArgument(2);
+                String subPath = invocation.getArgument(3);
+                String key = prefix + "/" + subPath + "/" + name;
+                return new QiniuStorage.UploadResult(key, "https://kodo.test/" + key);
+            });
+        when(storage.signedUrl(anyString())).thenAnswer(invocation ->
+            "https://kodo.test/" + invocation.getArgument(0));
+        when(storage.rawUrl(anyString())).thenAnswer(invocation ->
+            "https://kodo.test/" + invocation.getArgument(0));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -88,17 +110,33 @@ class ContractTest extends FullStackTestBase {
             codeStore.save(type, preset.email(), preset.code());
         }
 
-        MockHttpServletRequestBuilder request = switch (contractCase.method().toUpperCase()) {
-            case "GET" -> MockMvcRequestBuilders.get(contractCase.path());
-            case "POST" -> MockMvcRequestBuilders.post(contractCase.path());
-            case "PUT" -> MockMvcRequestBuilders.put(contractCase.path());
-            case "PATCH" -> MockMvcRequestBuilders.patch(contractCase.path());
-            case "DELETE" -> MockMvcRequestBuilders.delete(contractCase.path());
-            default -> throw new IllegalArgumentException(
-                "Unsupported method: " + contractCase.method());
-        };
+        MockHttpServletRequestBuilder request;
+        if (contractCase.multipart() != null) {
+            MockMultipartHttpServletRequestBuilder multipart =
+                MockMvcRequestBuilders.multipart(contractCase.path());
+            contractCase.multipart().fields().forEach((key, values) ->
+                multipart.param(key, values.toArray(String[]::new)));
+            for (ContractCase.FilePart file : contractCase.multipart().files()) {
+                byte[] bytes = new ClassPathResource(file.resource()).getInputStream().readAllBytes();
+                multipart.file(new MockMultipartFile(
+                    file.field(), file.filename(), file.contentType(), bytes));
+            }
+            request = multipart;
+        } else {
+            request = switch (contractCase.method().toUpperCase()) {
+                case "GET" -> MockMvcRequestBuilders.get(contractCase.path());
+                case "POST" -> MockMvcRequestBuilders.post(contractCase.path());
+                case "PUT" -> MockMvcRequestBuilders.put(contractCase.path());
+                case "PATCH" -> MockMvcRequestBuilders.patch(contractCase.path());
+                case "DELETE" -> MockMvcRequestBuilders.delete(contractCase.path());
+                default -> throw new IllegalArgumentException(
+                    "Unsupported method: " + contractCase.method());
+            };
+        }
 
         contractCase.headers().forEach(request::header);
+        contractCase.params().forEach((key, values) ->
+            request.param(key, values.toArray(String[]::new)));
         if (contractCase.body() != null) {
             request.contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(contractCase.body()));
