@@ -1,0 +1,19 @@
+auth:
+  jwt:
+    secret: test-secret-please-change-32-bytes-min
+    ttl: 7d
+  rate-limit:
+    login-limit: 10
+    login-window: 15m
+    code-limit: 5
+    code-window: 15m
+    code-max-attempts: 5
+
+qiniu:
+  access-key: test-access-key
+  secret-key: test-secret-key
+  bucket: test-bucket
+  domain: kodo.test
+  protocol: https
+  private-bucket: false
+  legacy-domains: kodo.legacy.test

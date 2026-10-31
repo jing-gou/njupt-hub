@@ -2,6 +2,7 @@ package com.njupt.hub.common;
 
 import com.njupt.hub.common.api.GlobalExceptionHandler;
 import com.njupt.hub.common.web.RequestIdFilter;
+import com.njupt.hub.support.PermissiveSecurityConfig;
 import com.njupt.hub.support.TestErrorController;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = TestErrorController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, PermissiveSecurityConfig.class})
 @ExtendWith(OutputCaptureExtension.class)
 class ErrorHandlingTest {
 
