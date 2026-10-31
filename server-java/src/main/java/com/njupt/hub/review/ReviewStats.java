@@ -52,8 +52,9 @@ public final class ReviewStats {
         if (item == null) {
             return;
         }
-        item.setAvgRating(weightedAverage(approved, usersById));
-        item.setUpdatedAt(LocalDateTime.now());
-        items.updateById(item);
+        items.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ReviewableItem>()
+            .eq(ReviewableItem::getId, itemId)
+            .set(ReviewableItem::getAvgRating, weightedAverage(approved, usersById))
+            .set(ReviewableItem::getUpdatedAt, LocalDateTime.now(java.time.ZoneOffset.UTC)));
     }
 }

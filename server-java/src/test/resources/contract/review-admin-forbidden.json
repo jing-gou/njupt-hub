@@ -1,0 +1,21 @@
+{
+  "name": "review-admin-forbidden",
+  "method": "PATCH",
+  "path": "/api/reviews/admin/reviews/4002/status",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "alice",
+  "body": {
+    "status": "APPROVED"
+  },
+  "expected": {
+    "status": 403,
+    "json": {
+      "message": "拒绝访问"
+    }
+  },
+  "ignorePaths": []
+}

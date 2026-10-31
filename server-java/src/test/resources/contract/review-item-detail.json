@@ -25,9 +25,9 @@
           "rating": 5,
           "comment": "讲得很清楚",
           "ip": "127.0.0.1",
-          "createdAt": "2026-10-31T17:35:32.207Z",
+          "createdAt": "2026-10-31T18:06:28.301Z",
           "reviewerId": 1001,
-          "updatedAt": "2026-10-31T18:35:32.207Z",
+          "updatedAt": "2026-10-31T19:06:28.301Z",
           "imageUrl": "",
           "status": "APPROVED",
           "itemId": 3001,
@@ -50,7 +50,7 @@
               "content": "同意",
               "userId": 1002,
               "reviewId": 4001,
-              "createdAt": "2026-10-31T18:35:32.210Z",
+              "createdAt": "2026-10-31T19:06:28.305Z",
               "user": {
                 "username": "bob"
               }
@@ -64,9 +64,9 @@
           "rating": 1,
           "comment": null,
           "ip": "127.0.0.1",
-          "createdAt": "2026-10-31T13:35:32.207Z",
+          "createdAt": "2026-10-31T14:06:28.301Z",
           "reviewerId": 1004,
-          "updatedAt": "2026-10-31T18:35:32.207Z",
+          "updatedAt": "2026-10-31T19:06:28.301Z",
           "imageUrl": "",
           "status": "APPROVED",
           "itemId": 3001,

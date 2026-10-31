@@ -106,6 +106,11 @@ class ReviewSubmitTest extends FullStackTestBase {
                 .content("{\"itemId\":3004,\"rating\":3}"))
             .andExpect(status().isCreated());
 
+        Integer distinctIps = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM `Review` WHERE itemId = 3004 AND reviewerId = 1004",
+            Integer.class);
+        assertThat(distinctIps).isEqualTo(2);
+
         mvc.perform(post("/api/reviews/submit")
                 .header("X-Real-IP", "7.7.7.7")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -160,6 +165,23 @@ class ReviewSubmitTest extends FullStackTestBase {
             .andExpect(jsonPath("$.status").value("PENDING"));
 
         assertThat(avg(3001)).isEqualTo(1.0);
+    }
+
+    @Test
+    void clearing_image_in_window_prevents_moderation_bypass() throws Exception {
+        jdbc.update("UPDATE `Review` SET imageUrl = 'assets/reviews/old.png' WHERE id = 4002");
+        String token = login("bob", "Password123");
+
+        mvc.perform(post("/api/reviews/submit")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"itemId\":3001,\"rating\":1,\"imageUrl\":\"\"}"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        String image = jdbc.queryForObject(
+            "SELECT imageUrl FROM `Review` WHERE id = 4002", String.class);
+        assertThat(image).isNull();
     }
 
     @Test

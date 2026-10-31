@@ -12,6 +12,10 @@ const manifest = JSON.parse(
 const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : null;
 const selected = only ? manifest.filter((name) => name === only) : manifest;
+if (only && selected.length === 0) {
+  console.error(`unknown contract case: ${only}`);
+  process.exit(1);
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

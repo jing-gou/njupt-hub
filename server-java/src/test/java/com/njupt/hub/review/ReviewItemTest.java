@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,9 @@ class ReviewItemTest extends FullStackTestBase {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     @BeforeEach
     void setUp() {
@@ -78,6 +82,20 @@ class ReviewItemTest extends FullStackTestBase {
             .andExpect(jsonPath("$.reviews[0].isLiked").value(true))
             .andExpect(jsonPath("$.reviews[1].id").value(4002))
             .andExpect(jsonPath("$.reviews[1].status").value("PENDING"));
+    }
+
+    @Test
+    void serializes_database_time_as_utc_z() throws Exception {
+        jdbc.update("""
+            INSERT INTO `Review` (`id`, `rating`, `comment`, `ip`, `createdAt`, `reviewerId`,
+                                  `updatedAt`, `imageUrl`, `status`, `itemId`)
+            VALUES (4999, 5, 'fixed', '127.0.0.1', '2026-01-02 03:04:05', 1001,
+                    '2026-01-02 03:04:05', NULL, 'APPROVED', 3004)
+            """);
+
+        mvc.perform(get("/api/reviews/items/3004"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reviews[0].createdAt").value("2026-01-02T03:04:05Z"));
     }
 
     @Test

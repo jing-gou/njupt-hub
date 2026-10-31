@@ -16,7 +16,7 @@
         "reason": "内容不实",
         "userId": 1003,
         "reviewId": 4001,
-        "createdAt": "2026-10-31T18:35:39.308Z",
+        "createdAt": "2026-10-31T19:06:35.454Z",
         "user": {
           "username": "admin"
         },
@@ -25,9 +25,9 @@
           "rating": 5,
           "comment": "讲得很清楚",
           "ip": "127.0.0.1",
-          "createdAt": "2026-10-31T17:35:39.303Z",
+          "createdAt": "2026-10-31T18:06:35.448Z",
           "reviewerId": 1001,
-          "updatedAt": "2026-10-31T18:35:39.303Z",
+          "updatedAt": "2026-10-31T19:06:35.448Z",
           "imageUrl": null,
           "status": "APPROVED",
           "itemId": 3001,

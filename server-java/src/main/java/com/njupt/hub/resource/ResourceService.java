@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -119,7 +119,7 @@ public class ResourceService {
             throw new ApiException(HttpStatus.NOT_FOUND, "用户不存在");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         Resource resource = new Resource();
         resource.setTitle(String.valueOf(title));
         resource.setDescription(request.description() == null ? null : String.valueOf(request.description()));
@@ -192,7 +192,7 @@ public class ResourceService {
                 normalizedCourse,
                 file.getContentType());
 
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             Resource resource = new Resource();
             resource.setTitle(String.valueOf(title));
             resource.setFileUrl(storage.rawUrl(uploaded.key()));
@@ -258,7 +258,7 @@ public class ResourceService {
 
         Resource resource = findResource(id);
         String previous = resource.getStatus();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         if ("APPROVED".equals(status)
             && resource.getFileKey() != null
@@ -351,7 +351,7 @@ public class ResourceService {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "资料上传成功，但感谢邮件暂时发送失败");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         resources.update(null, new LambdaUpdateWrapper<Resource>()
             .in(Resource::getId, resourcesToMail.stream().map(Resource::getId).toList())
             .eq(Resource::getUploaderId, userId)
@@ -369,7 +369,7 @@ public class ResourceService {
         }
         Resource resource = findResource(id);
         resource.setTitle(nextTitle);
-        resource.setUpdatedAt(LocalDateTime.now());
+        resource.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         resources.updateById(resource);
         return toView(resource, users.selectById(resource.getUploaderId()));
     }
@@ -412,7 +412,7 @@ public class ResourceService {
 
         try {
             mailService.sendResourceReviewResultEmail(uploader.getEmail(), uploader.getUsername(), resource);
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             resources.update(null, new LambdaUpdateWrapper<Resource>()
                 .eq(Resource::getId, resource.getId())
                 .set(Resource::getReviewResultEmailSentAt, now)
@@ -475,7 +475,7 @@ public class ResourceService {
     }
 
     private Instant toInstant(LocalDateTime value) {
-        return value == null ? null : value.atZone(ZoneId.of("Asia/Shanghai")).toInstant();
+        return value == null ? null : value.toInstant(ZoneOffset.UTC);
     }
 
     private ResourceView toView(Resource resource, User uploader) {

@@ -94,6 +94,15 @@ class ReviewImageTest extends FullStackTestBase {
     }
 
     @Test
+    void unauthenticated_upload_returns_401() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+            "image", "review.png", "image/png", "png".getBytes(StandardCharsets.UTF_8));
+
+        mvc.perform(multipart("/api/reviews/upload-image").file(file))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void missing_file_returns_400() throws Exception {
         String token = login("alice", "Password123");
 

@@ -1,0 +1,38 @@
+{
+  "name": "review-submit-guest",
+  "method": "POST",
+  "path": "/api/reviews/submit",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "body": {
+    "itemId": 3004,
+    "rating": 4
+  },
+  "expected": {
+    "status": 201,
+    "json": {
+      "id": 4007,
+      "rating": 4,
+      "comment": null,
+      "ip": "::ffff:127.0.0.1",
+      "createdAt": "2026-10-31T19:06:40.490Z",
+      "reviewerId": 1004,
+      "updatedAt": "2026-10-31T19:06:40.490Z",
+      "imageUrl": "",
+      "status": "APPROVED",
+      "itemId": 3004,
+      "reviewer": {
+        "username": "游客"
+      }
+    }
+  },
+  "ignorePaths": [
+    "/id",
+    "/createdAt",
+    "/updatedAt",
+    "/ip"
+  ]
+}

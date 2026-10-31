@@ -1,0 +1,40 @@
+{
+  "name": "review-submit-pending",
+  "method": "POST",
+  "path": "/api/reviews/submit",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "alice",
+  "body": {
+    "itemId": 3001,
+    "rating": 5,
+    "comment": "文字评价"
+  },
+  "expected": {
+    "status": 201,
+    "json": {
+      "id": 4001,
+      "rating": 5,
+      "comment": "文字评价",
+      "ip": "::ffff:127.0.0.1",
+      "createdAt": "2026-10-31T18:06:41.768Z",
+      "reviewerId": 1001,
+      "updatedAt": "2026-10-31T19:06:42.037Z",
+      "imageUrl": "",
+      "status": "PENDING",
+      "itemId": 3001,
+      "reviewer": {
+        "username": "alice"
+      },
+      "message": "评价已提交，审核通过后可公开展示"
+    }
+  },
+  "ignorePaths": [
+    "/createdAt",
+    "/updatedAt",
+    "/ip"
+  ]
+}

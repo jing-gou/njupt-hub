@@ -13,7 +13,7 @@
   "expected": {
     "status": 200,
     "json": {
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwMDEsInJvbGUiOiJVU0VSIiwidXNlcm5hbWUiOiJhbGljZSIsImlhdCI6MTc5MzQ3MTcxMCwiZXhwIjoxNzk0MDc2NTEwfQ.c5O9jpLRXo9A9hWo2Gk3wqvAAb7Sgx-OikHxMA7AUlI",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwMDEsInJvbGUiOiJVU0VSIiwidXNlcm5hbWUiOiJhbGljZSIsImlhdCI6MTc5MzQ3MzU2NiwiZXhwIjoxNzk0MDc4MzY2fQ.VwOQxbHwWoHSCLBOeH8a2kl6yGP4jenG2HPuH7x9reQ",
       "user": {
         "id": 1001,
         "username": "alice",

@@ -2,7 +2,7 @@ package com.njupt.hub.review;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -155,7 +155,7 @@ public class ReviewService {
 
         String oldKey = item.getImageUrl();
         item.setImageUrl(uploaded.key());
-        item.setUpdatedAt(java.time.LocalDateTime.now());
+        item.setUpdatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
         items.updateById(item);
 
         if (oldKey != null && !oldKey.isBlank() && !oldKey.equals(uploaded.key())) {
@@ -202,7 +202,7 @@ public class ReviewService {
         }
         Review review = findReview(reviewId);
         review.setStatus(status);
-        review.setUpdatedAt(java.time.LocalDateTime.now());
+        review.setUpdatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
         reviews.updateById(review);
         ReviewStats.recalculate(reviews, items, users, review.getItemId());
     }
@@ -238,7 +238,7 @@ public class ReviewService {
                     toInstant(review.getCreatedAt()),
                     review.getReviewerId(),
                     toInstant(review.getUpdatedAt()),
-                    review.getImageUrl(),
+                    review.getImageUrl() == null ? null : signer.getSignedUrl(review.getImageUrl()),
                     review.getStatus(),
                     review.getItemId(),
                     new ReportView.Reviewer(reviewer == null ? null : reviewer.getUsername()),
@@ -248,6 +248,10 @@ public class ReviewService {
     }
 
     public void deleteReport(long reportId) {
+        Report report = reports.selectById(reportId);
+        if (report == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "举报不存在");
+        }
         reports.deleteById(reportId);
     }
 
@@ -264,45 +268,61 @@ public class ReviewService {
 
         ReviewableItem item = new ReviewableItem();
         item.setTitle(title);
-        item.setDescription(request.description());
+        item.setDescription(request.description() == null || request.description().isBlank() ? null : request.description());
         item.setImageUrl(normalizeImage(request.imageUrl()));
         item.setType(type);
-        item.setLocation(request.location());
-        item.setCollege(request.college());
+        item.setLocation(request.location() == null || request.location().isBlank() ? null : request.location());
+        item.setCollege(request.college() == null || request.college().isBlank() ? null : request.college());
         item.setAvgRating(0.0);
-        item.setCreatedAt(java.time.LocalDateTime.now());
-        item.setUpdatedAt(java.time.LocalDateTime.now());
+        item.setCreatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
+        item.setUpdatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
         items.insert(item);
         return toAdminItem(item);
     }
 
     @Transactional
     public AdminItemView updateItem(long id, ReviewItemRequest request) {
+        ReviewItemRequest update = request == null
+            ? new ReviewItemRequest(null, null, null, null, null, null)
+            : request;
         ReviewableItem item = items.selectById(id);
         if (item == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "项目未找到");
         }
-        if (request.title() != null) {
-            String title = request.title().trim();
+
+        LambdaUpdateWrapper<ReviewableItem> wrapper = new LambdaUpdateWrapper<ReviewableItem>()
+            .eq(ReviewableItem::getId, id)
+            .set(ReviewableItem::getUpdatedAt, java.time.LocalDateTime.now(ZoneOffset.UTC));
+
+        if (update.title() != null) {
+            String title = update.title().trim();
             if (title.isEmpty()) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "标题不能为空");
             }
+            wrapper.set(ReviewableItem::getTitle, title);
             item.setTitle(title);
         }
-        if (request.description() != null) {
-            item.setDescription(request.description());
+        if (update.description() != null) {
+            String value = update.description().isBlank() ? null : update.description();
+            wrapper.set(ReviewableItem::getDescription, value);
+            item.setDescription(value);
         }
-        if (request.imageUrl() != null) {
-            item.setImageUrl(normalizeImage(request.imageUrl()));
+        if (update.imageUrl() != null) {
+            String value = normalizeImage(update.imageUrl());
+            wrapper.set(ReviewableItem::getImageUrl, value);
+            item.setImageUrl(value);
         }
-        if (request.location() != null) {
-            item.setLocation(request.location());
+        if (update.location() != null) {
+            String value = update.location().isBlank() ? null : update.location();
+            wrapper.set(ReviewableItem::getLocation, value);
+            item.setLocation(value);
         }
-        if (request.college() != null) {
-            item.setCollege(request.college());
+        if (update.college() != null) {
+            String value = update.college().isBlank() ? null : update.college();
+            wrapper.set(ReviewableItem::getCollege, value);
+            item.setCollege(value);
         }
-        item.setUpdatedAt(java.time.LocalDateTime.now());
-        items.updateById(item);
+        items.update(null, wrapper);
         return toAdminItem(item);
     }
 
@@ -358,34 +378,50 @@ public class ReviewService {
 
     @Transactional
     public ReviewCreatedView updateOwn(long reviewId, long userId, UpdateReviewRequest request) {
+        UpdateReviewRequest update = request == null
+            ? new UpdateReviewRequest(null, null, null)
+            : request;
         Review review = findReview(reviewId);
         if (!Objects.equals(review.getReviewerId(), (int) userId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "无权修改该评价");
         }
 
         ReviewableItem item = items.selectById(review.getItemId());
-        if (request.rating() != null) {
-            review.setRating(request.rating());
+        if (update.rating() != null) {
+            review.setRating(update.rating());
         }
-        if (request.comment() != null) {
-            String comment = request.comment().trim();
+        if (update.comment() != null) {
+            String comment = update.comment().trim();
             if (sensitiveWords.contains(comment)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "评价内容包含敏感词，请修改后再提交");
             }
             review.setComment(comment);
         }
-        if (request.imageUrl() != null) {
-            review.setImageUrl(request.imageUrl().isBlank()
+        if (update.imageUrl() != null) {
+            review.setImageUrl(update.imageUrl().isBlank()
                 ? null
-                : QiniuUrlSigner.normalizeStoredFileKey(request.imageUrl()));
+                : QiniuUrlSigner.normalizeStoredFileKey(update.imageUrl()));
         }
 
         boolean needModeration = item != null && "MENTOR".equals(item.getType())
             && ((review.getComment() != null && !review.getComment().isBlank())
                 || review.getImageUrl() != null);
         review.setStatus(needModeration ? "PENDING" : "APPROVED");
-        review.setUpdatedAt(java.time.LocalDateTime.now());
-        reviews.updateById(review);
+        review.setUpdatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
+        LambdaUpdateWrapper<Review> wrapper = new LambdaUpdateWrapper<Review>()
+            .eq(Review::getId, reviewId)
+            .set(Review::getStatus, review.getStatus())
+            .set(Review::getUpdatedAt, review.getUpdatedAt());
+        if (update.rating() != null) {
+            wrapper.set(Review::getRating, review.getRating());
+        }
+        if (update.comment() != null) {
+            wrapper.set(Review::getComment, review.getComment());
+        }
+        if (update.imageUrl() != null) {
+            wrapper.set(Review::getImageUrl, review.getImageUrl());
+        }
+        reviews.update(null, wrapper);
         ReviewStats.recalculate(reviews, items, users, review.getItemId());
 
         return toCreatedView(review, users.selectById(userId),
@@ -420,7 +456,7 @@ public class ReviewService {
         Like like = new Like();
         like.setUserId((int) userId);
         like.setReviewId((int) reviewId);
-        like.setCreatedAt(java.time.LocalDateTime.now());
+        like.setCreatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
         likes.insert(like);
         addExperience(review.getReviewerId(), 2);
         return new LikeResult(true, 2);
@@ -441,7 +477,7 @@ public class ReviewService {
         reply.setContent(normalized);
         reply.setUserId((int) userId);
         reply.setReviewId((int) reviewId);
-        reply.setCreatedAt(java.time.LocalDateTime.now());
+        reply.setCreatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
         replies.insert(reply);
         return toReplyView(reply);
     }
@@ -457,7 +493,7 @@ public class ReviewService {
         report.setReason(reason);
         report.setUserId((int) userId);
         report.setReviewId((int) reviewId);
-        report.setCreatedAt(java.time.LocalDateTime.now());
+        report.setCreatedAt(java.time.LocalDateTime.now(ZoneOffset.UTC));
         reports.insert(report);
         return new ReportResult("举报已提交", report.getId());
     }
@@ -532,6 +568,7 @@ public class ReviewService {
             if (imageKey != null) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "游客仅允许评分，请登录后上传图片");
             }
+            comment = null;
         } else {
             reviewer = users.selectById(userId);
             if (reviewer == null) {
@@ -551,12 +588,12 @@ public class ReviewService {
         Review latest = reviews.selectOne(latestQuery);
         boolean withinWindow = latest != null
             && latest.getCreatedAt() != null
-            && latest.getCreatedAt().isAfter(java.time.LocalDateTime.now().minusDays(1));
+            && latest.getCreatedAt().isAfter(java.time.LocalDateTime.now(ZoneOffset.UTC).minusDays(1));
 
         boolean needModeration = "MENTOR".equals(item.getType())
             && ((comment != null && !comment.isEmpty()) || imageKey != null);
         String status = needModeration ? "PENDING" : "APPROVED";
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(ZoneOffset.UTC);
 
         Review review;
         if (withinWindow) {
@@ -567,7 +604,14 @@ public class ReviewService {
             review.setStatus(status);
             review.setIp(ip);
             review.setUpdatedAt(now);
-            reviews.updateById(review);
+            reviews.update(null, new LambdaUpdateWrapper<Review>()
+                .eq(Review::getId, review.getId())
+                .set(Review::getRating, rating)
+                .set(Review::getComment, comment)
+                .set(Review::getImageUrl, imageKey)
+                .set(Review::getStatus, status)
+                .set(Review::getIp, ip)
+                .set(Review::getUpdatedAt, now));
         } else {
             review = new Review();
             review.setRating(rating);
@@ -731,6 +775,6 @@ public class ReviewService {
     }
 
     private Instant toInstant(LocalDateTime value) {
-        return value == null ? null : value.atZone(ZoneId.of("Asia/Shanghai")).toInstant();
+        return value == null ? null : value.toInstant(ZoneOffset.UTC);
     }
 }

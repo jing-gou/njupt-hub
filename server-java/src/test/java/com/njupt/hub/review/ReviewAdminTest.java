@@ -150,6 +150,16 @@ class ReviewAdminTest extends FullStackTestBase {
     }
 
     @Test
+    void dismissing_missing_report_returns_404() throws Exception {
+        String admin = login("admin", "Password123");
+
+        mvc.perform(delete("/api/reviews/admin/reports/999999")
+                .header("Authorization", "Bearer " + admin))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("举报不存在"));
+    }
+
+    @Test
     void invalid_item_payloads_are_rejected() throws Exception {
         String admin = login("admin", "Password123");
 

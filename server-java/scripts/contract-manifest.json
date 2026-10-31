@@ -43,5 +43,12 @@
   "review-item-create",
   "review-item-update",
   "review-item-delete",
-  "review-admin-delete"
+  "review-admin-delete",
+  "review-submit-guest",
+  "review-submit-window",
+  "review-submit-pending",
+  "review-submit-missing",
+  "review-like-unauth",
+  "review-admin-forbidden",
+  "review-item-missing"
 ]
