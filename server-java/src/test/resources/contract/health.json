@@ -1,0 +1,15 @@
+{
+  "name": "health",
+  "method": "GET",
+  "path": "/health",
+  "headers": {},
+  "body": null,
+  "expected": {
+    "status": 200,
+    "json": {
+      "status": "ok",
+      "message": "服务器运行正常"
+    }
+  },
+  "ignorePaths": []
+}

@@ -1,0 +1,19 @@
+{
+  "name": "echo",
+  "type": "parity",
+  "method": "POST",
+  "path": "/contract-test/echo",
+  "headers": {},
+  "body": {
+    "name": "njupt"
+  },
+  "expected": {
+    "status": 200,
+    "json": {
+      "received": {
+        "name": "njupt"
+      }
+    }
+  },
+  "ignorePaths": []
+}

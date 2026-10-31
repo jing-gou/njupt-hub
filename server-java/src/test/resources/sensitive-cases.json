@@ -1,0 +1,106 @@
+[
+  {
+    "text": "兼职",
+    "expected": true
+  },
+  {
+    "text": "兼 职",
+    "expected": true
+  },
+  {
+    "text": "兼-职",
+    "expected": true
+  },
+  {
+    "text": "招.聘",
+    "expected": false
+  },
+  {
+    "text": "代购",
+    "expected": true
+  },
+  {
+    "text": "淘宝",
+    "expected": true
+  },
+  {
+    "text": "客服",
+    "expected": true
+  },
+  {
+    "text": "刷单",
+    "expected": false
+  },
+  {
+    "text": "高等数学",
+    "expected": false
+  },
+  {
+    "text": "期末复习资料",
+    "expected": false
+  },
+  {
+    "text": "图书馆",
+    "expected": false
+  },
+  {
+    "text": "食堂",
+    "expected": false
+  },
+  {
+    "text": "测试专用词",
+    "expected": true
+  },
+  {
+    "text": "测试 专用 词",
+    "expected": true
+  },
+  {
+    "text": "hello",
+    "expected": false
+  },
+  {
+    "text": "NJUPT",
+    "expected": true
+  },
+  {
+    "text": "课程设计",
+    "expected": false
+  },
+  {
+    "text": "计算机网络",
+    "expected": true
+  },
+  {
+    "text": "线性代数",
+    "expected": false
+  },
+  {
+    "text": "社团招新",
+    "expected": true
+  },
+  {
+    "text": "nmsl",
+    "expected": true
+  },
+  {
+    "text": "NMSL",
+    "expected": true
+  },
+  {
+    "text": "n m s l",
+    "expected": true
+  },
+  {
+    "text": "傻逼",
+    "expected": true
+  },
+  {
+    "text": "煞笔",
+    "expected": true
+  },
+  {
+    "text": "sb",
+    "expected": true
+  }
+]

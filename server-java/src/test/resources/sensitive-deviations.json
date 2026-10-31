@@ -1,0 +1,14 @@
+[
+  {
+    "text": "zbi",
+    "nodeExpected": false,
+    "javaExpected": true,
+    "reason": "V9: Node match() reuses trie pointer across outer loop iterations, Java resets at each start"
+  },
+  {
+    "text": "作作秀",
+    "nodeExpected": false,
+    "javaExpected": true,
+    "reason": "V9: Node match() reuses trie pointer across outer loop iterations, Java resets at each start"
+  }
+]
