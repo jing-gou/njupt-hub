@@ -1,12 +1,14 @@
 package com.njupt.hub.review;
 
 import java.util.List;
+import java.util.Map;
 
 import com.njupt.hub.auth.limit.ClientIpResolver;
 import com.njupt.hub.auth.token.JwtPrincipal;
 import com.njupt.hub.common.api.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -34,6 +37,23 @@ public class ReviewController {
         @RequestParam(required = false) String type
     ) {
         return ResponseEntity.ok(reviewService.listItems(type));
+    }
+
+    @PostMapping("/upload-image")
+    public ResponseEntity<Map<String, String>> uploadImage(
+        @RequestParam(value = "image", required = false) MultipartFile image
+    ) {
+        return ResponseEntity.ok(Map.of("url", reviewService.uploadReviewImage(image)));
+    }
+
+    @PostMapping("/admin/items/{id}/image")
+    @PreAuthorize("hasAnyRole('ADMIN','DEV')")
+    public ResponseEntity<Map<String, String>> uploadItemImage(
+        @PathVariable String id,
+        @RequestParam(value = "image", required = false) MultipartFile image
+    ) {
+        String imageUrl = reviewService.uploadItemImage(parseId(id), image);
+        return ResponseEntity.ok(Map.of("message", "上传成功", "imageUrl", imageUrl));
     }
 
     @PostMapping("/submit")

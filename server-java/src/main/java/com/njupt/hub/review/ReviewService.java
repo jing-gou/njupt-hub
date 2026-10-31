@@ -19,6 +19,7 @@ import com.njupt.hub.auth.user.GuestUserService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
 import com.njupt.hub.common.api.ApiException;
+import com.njupt.hub.resource.storage.QiniuStorage;
 import com.njupt.hub.sensitive.SensitiveWordFilter;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class ReviewService {
     private final GuestUserService guestUsers;
     private final SensitiveWordFilter sensitiveWords;
     private final RateLimiter rateLimiter;
+    private final QiniuStorage storage;
 
     public ReviewService(
         ReviewableItemMapper items,
@@ -48,7 +50,8 @@ public class ReviewService {
         QiniuUrlSigner signer,
         GuestUserService guestUsers,
         SensitiveWordFilter sensitiveWords,
-        RateLimiter rateLimiter
+        RateLimiter rateLimiter,
+        QiniuStorage storage
     ) {
         this.items = items;
         this.reviews = reviews;
@@ -59,6 +62,7 @@ public class ReviewService {
         this.guestUsers = guestUsers;
         this.sensitiveWords = sensitiveWords;
         this.rateLimiter = rateLimiter;
+        this.storage = storage;
     }
 
     public List<ReviewItemView> listItems(String type) {
@@ -102,6 +106,60 @@ public class ReviewService {
                 latest));
         }
         return result;
+    }
+
+    public String uploadReviewImage(org.springframework.web.multipart.MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "未上传文件");
+        }
+        try {
+            QiniuStorage.UploadResult uploaded = storage.upload(
+                file.getBytes(),
+                file.getOriginalFilename() == null ? "review-image" : file.getOriginalFilename(),
+                "assets",
+                "reviews",
+                file.getContentType());
+            return signer.getSignedUrl(uploaded.key());
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException("Failed to read review image", ex);
+        }
+    }
+
+    @Transactional
+    public String uploadItemImage(long itemId, org.springframework.web.multipart.MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "未上传文件");
+        }
+        ReviewableItem item = items.selectById(itemId);
+        if (item == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "项目未找到");
+        }
+
+        QiniuStorage.UploadResult uploaded;
+        try {
+            uploaded = storage.upload(
+                file.getBytes(),
+                file.getOriginalFilename() == null ? "item-image" : file.getOriginalFilename(),
+                "assets",
+                "items",
+                file.getContentType());
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException("Failed to read item image", ex);
+        }
+
+        String oldKey = item.getImageUrl();
+        item.setImageUrl(uploaded.key());
+        item.setUpdatedAt(java.time.LocalDateTime.now());
+        items.updateById(item);
+
+        if (oldKey != null && !oldKey.isBlank() && !oldKey.equals(uploaded.key())) {
+            try {
+                storage.delete(QiniuUrlSigner.normalizeStoredFileKey(oldKey));
+            } catch (RuntimeException ignored) {
+                // best-effort cleanup
+            }
+        }
+        return signer.getSignedUrl(uploaded.key());
     }
 
     @Transactional
