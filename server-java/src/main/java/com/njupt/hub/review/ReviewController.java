@@ -10,7 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -100,6 +102,25 @@ public class ReviewController {
     public ResponseEntity<Map<String, Long>> stats(@AuthenticationPrincipal JwtPrincipal principal) {
         return ResponseEntity.ok(Map.of(
             "receivedLikes", reviewService.receivedLikes(principal.userId())));
+    }
+
+    @PatchMapping("/{reviewId}")
+    public ResponseEntity<ReviewCreatedView> updateOwn(
+        @PathVariable String reviewId,
+        @AuthenticationPrincipal JwtPrincipal principal,
+        @RequestBody(required = false) UpdateReviewRequest request
+    ) {
+        return ResponseEntity.ok(reviewService.updateOwn(
+            parseId(reviewId), principal.userId(), request));
+    }
+
+    @DeleteMapping("/{reviewId}")
+    public ResponseEntity<Map<String, String>> deleteOwn(
+        @PathVariable String reviewId,
+        @AuthenticationPrincipal JwtPrincipal principal
+    ) {
+        reviewService.deleteOwn(parseId(reviewId), principal.userId());
+        return ResponseEntity.ok(Map.of("message", "评价已删除"));
     }
 
     @GetMapping("/items/{id}")

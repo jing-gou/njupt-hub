@@ -41,6 +41,7 @@ public class ReviewService {
     private final SensitiveWordFilter sensitiveWords;
     private final RateLimiter rateLimiter;
     private final QiniuStorage storage;
+    private final ReviewCleanup cleanup;
 
     public ReviewService(
         ReviewableItemMapper items,
@@ -53,7 +54,8 @@ public class ReviewService {
         GuestUserService guestUsers,
         SensitiveWordFilter sensitiveWords,
         RateLimiter rateLimiter,
-        QiniuStorage storage
+        QiniuStorage storage,
+        ReviewCleanup cleanup
     ) {
         this.items = items;
         this.reviews = reviews;
@@ -66,6 +68,7 @@ public class ReviewService {
         this.sensitiveWords = sensitiveWords;
         this.rateLimiter = rateLimiter;
         this.storage = storage;
+        this.cleanup = cleanup;
     }
 
     public List<ReviewItemView> listItems(String type) {
@@ -163,6 +166,54 @@ public class ReviewService {
             }
         }
         return signer.getSignedUrl(uploaded.key());
+    }
+
+    @Transactional
+    public ReviewCreatedView updateOwn(long reviewId, long userId, UpdateReviewRequest request) {
+        Review review = findReview(reviewId);
+        if (!Objects.equals(review.getReviewerId(), (int) userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "无权修改该评价");
+        }
+
+        ReviewableItem item = items.selectById(review.getItemId());
+        if (request.rating() != null) {
+            review.setRating(request.rating());
+        }
+        if (request.comment() != null) {
+            String comment = request.comment().trim();
+            if (sensitiveWords.contains(comment)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "评价内容包含敏感词，请修改后再提交");
+            }
+            review.setComment(comment);
+        }
+        if (request.imageUrl() != null) {
+            review.setImageUrl(request.imageUrl().isBlank()
+                ? null
+                : QiniuUrlSigner.normalizeStoredFileKey(request.imageUrl()));
+        }
+
+        boolean needModeration = item != null && "MENTOR".equals(item.getType())
+            && ((review.getComment() != null && !review.getComment().isBlank())
+                || review.getImageUrl() != null);
+        review.setStatus(needModeration ? "PENDING" : "APPROVED");
+        review.setUpdatedAt(java.time.LocalDateTime.now());
+        reviews.updateById(review);
+        ReviewStats.recalculate(reviews, items, users, review.getItemId());
+
+        return toCreatedView(review, users.selectById(userId),
+            "PENDING".equals(review.getStatus())
+                ? "修改已提交，审核通过后公开展示"
+                : "修改成功");
+    }
+
+    @Transactional
+    public void deleteOwn(long reviewId, long userId) {
+        Review review = findReview(reviewId);
+        if (!Objects.equals(review.getReviewerId(), (int) userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "无权删除该评价");
+        }
+        cleanup.deleteWithRelations((int) reviewId);
+        ReviewStats.recalculate(reviews, items, users, review.getItemId());
     }
 
     @Transactional
