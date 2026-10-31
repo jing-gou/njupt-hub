@@ -95,7 +95,18 @@ for (const name of manifest) {
     headers.Authorization = `Bearer ${await loginToken(fixture.loginAs)}`;
   }
 
-  const result = await request(fixture.method || 'GET', `${baseUrl}${fixture.path}`, {
+  let url = `${baseUrl}${fixture.path}`;
+  if (fixture.params) {
+    const query = new URLSearchParams();
+    for (const [key, values] of Object.entries(fixture.params)) {
+      for (const value of values) {
+        query.append(key, value);
+      }
+    }
+    url += `?${query.toString()}`;
+  }
+
+  const result = await request(fixture.method || 'GET', url, {
     headers,
     body,
   });

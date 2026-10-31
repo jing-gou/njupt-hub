@@ -22,5 +22,8 @@
   "auth-profile-sensitive",
   "auth-password-wrong-current",
   "auth-reset-bad-code",
-  "auth-reset-weak-password"
+  "auth-reset-weak-password",
+  "resource-list",
+  "resource-detail",
+  "resource-download"
 ]

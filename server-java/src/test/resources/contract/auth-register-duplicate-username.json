@@ -9,13 +9,13 @@
   "presetCode": {
     "type": "verification",
     "email": "new@example.com",
-    "code": "385272"
+    "code": "671291"
   },
   "body": {
     "username": "charlie",
     "password": "Password123",
     "email": "new@example.com",
-    "code": "385272"
+    "code": "671291"
   },
   "expected": {
     "status": 409,
