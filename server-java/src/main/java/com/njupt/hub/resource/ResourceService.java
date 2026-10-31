@@ -1,9 +1,11 @@
 package com.njupt.hub.resource;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -11,6 +13,7 @@ import java.util.Objects;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.njupt.hub.auth.avatar.QiniuUrlSigner;
+import com.njupt.hub.auth.limit.RateLimiter;
 import com.njupt.hub.auth.mail.MailService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
@@ -36,19 +39,22 @@ public class ResourceService {
     private final QiniuUrlSigner signer;
     private final QiniuStorage storage;
     private final MailService mailService;
+    private final RateLimiter rateLimiter;
 
     public ResourceService(
         ResourceMapper resources,
         UserMapper users,
         QiniuUrlSigner signer,
         QiniuStorage storage,
-        MailService mailService
+        MailService mailService,
+        RateLimiter rateLimiter
     ) {
         this.resources = resources;
         this.users = users;
         this.signer = signer;
         this.storage = storage;
         this.mailService = mailService;
+        this.rateLimiter = rateLimiter;
     }
 
     public ResourcePage list(ResourceQuery query) {
@@ -293,6 +299,60 @@ public class ResourceService {
         ReviewNotification notification = maybeSendReviewResultEmail(resource, status);
         return new StatusResult(toView(resource, users.selectById(resource.getUploaderId())),
             notification);
+    }
+
+    @Transactional
+    public ThankYouResult sendThankYou(long userId, List<Long> resourceIds, String ip) {
+        if (!rateLimiter.tryAcquire("thank-you", ip == null ? "unknown" : ip,
+            10, Duration.ofMinutes(15))) {
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试");
+        }
+
+        List<Integer> ids = new ArrayList<>();
+        if (resourceIds != null) {
+            LinkedHashSet<Long> unique = new LinkedHashSet<>(resourceIds);
+            for (Long value : unique) {
+                if (value != null && value > 0) {
+                    ids.add(value.intValue());
+                }
+            }
+        }
+        ids = ids.stream().limit(100).toList();
+        if (ids.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "没有可发送的通知资料");
+        }
+
+        User uploader = users.selectById(userId);
+        if (uploader == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "用户不存在");
+        }
+
+        List<Resource> resourcesToMail = resources.selectList(new LambdaQueryWrapper<Resource>()
+            .in(Resource::getId, ids)
+            .eq(Resource::getUploaderId, userId)
+            .isNull(Resource::getThankYouEmailSentAt)
+            .orderByAsc(Resource::getCreatedAt));
+
+        if (resourcesToMail.isEmpty()) {
+            return new ThankYouResult("感谢邮件已发送，无需重复发送", false, null);
+        }
+
+        try {
+            mailService.sendUploadThankYouEmail(
+                uploader.getEmail(), uploader.getUsername(), resourcesToMail);
+        } catch (RuntimeException ex) {
+            log.error("Failed to send thank-you email for user {}", userId, ex);
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "资料上传成功，但感谢邮件暂时发送失败");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        resources.update(null, new LambdaUpdateWrapper<Resource>()
+            .in(Resource::getId, resourcesToMail.stream().map(Resource::getId).toList())
+            .eq(Resource::getUploaderId, userId)
+            .isNull(Resource::getThankYouEmailSentAt)
+            .set(Resource::getThankYouEmailSentAt, now));
+
+        return new ThankYouResult("感谢邮件已发送", true, resourcesToMail.size());
     }
 
     @Transactional

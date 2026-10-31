@@ -1,10 +1,12 @@
 package com.njupt.hub.resource;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.njupt.hub.auth.limit.ClientIpResolver;
 import com.njupt.hub.auth.token.JwtPrincipal;
 import com.njupt.hub.common.api.ApiException;
 import org.springframework.http.HttpStatus;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/resources")
@@ -28,10 +31,16 @@ public class ResourceController {
 
     private final ResourceService resourceService;
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver ipResolver;
 
-    public ResourceController(ResourceService resourceService, ObjectMapper objectMapper) {
+    public ResourceController(
+        ResourceService resourceService,
+        ObjectMapper objectMapper,
+        ClientIpResolver ipResolver
+    ) {
         this.resourceService = resourceService;
         this.objectMapper = objectMapper;
+        this.ipResolver = ipResolver;
     }
 
     @GetMapping
@@ -79,6 +88,26 @@ public class ResourceController {
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(Map.of("items", resourceService.upload(
                 files, titles, paths, course, category, userId)));
+    }
+
+    @PostMapping("/upload/thank-you")
+    public ResponseEntity<Map<String, Object>> thankYou(
+        @AuthenticationPrincipal JwtPrincipal principal,
+        @RequestBody(required = false) ThankYouRequest request,
+        HttpServletRequest httpRequest
+    ) {
+        ThankYouResult result = resourceService.sendThankYou(
+            principal.userId(),
+            request == null ? null : request.resourceIds(),
+            ipResolver.resolve(httpRequest));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", result.message());
+        body.put("emailSent", result.emailSent());
+        if (result.resourceCount() != null) {
+            body.put("resourceCount", result.resourceCount());
+        }
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping("/{id}/download-url")
