@@ -17,12 +17,16 @@ public record ContractCase(
     @JsonProperty("headers") Map<String, String> headers,
     @JsonProperty("body") JsonNode body,
     @JsonProperty("expected") Expected expected,
-    @JsonProperty("ignorePaths") List<String> ignorePaths
+    @JsonProperty("ignorePaths") List<String> ignorePaths,
+    @JsonProperty("seed") List<String> seed,
+    @JsonProperty("loginAs") String loginAs,
+    @JsonProperty("presetCode") PresetCode presetCode
 ) {
 
     public ContractCase {
         headers = headers == null ? Map.of() : headers;
         ignorePaths = ignorePaths == null ? List.of() : ignorePaths;
+        seed = seed == null ? List.of() : seed;
         type = type == null || type.isBlank() ? "parity" : type;
     }
 
@@ -30,6 +34,14 @@ public record ContractCase(
     public record Expected(
         @JsonProperty("status") int status,
         @JsonProperty("json") JsonNode json
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PresetCode(
+        @JsonProperty("type") String type,
+        @JsonProperty("email") String email,
+        @JsonProperty("code") String code
     ) {
     }
 }

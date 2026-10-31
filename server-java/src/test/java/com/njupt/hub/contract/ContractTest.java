@@ -9,7 +9,8 @@ import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.njupt.hub.support.MySqlTestBase;
+import com.njupt.hub.support.FullStackTestBase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,23 +18,32 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @AutoConfigureMockMvc
-@Import(ContractEchoController.class)
-class ContractTest extends MySqlTestBase {
+@Transactional
+@Import({ContractEchoController.class, ContractSeeder.class})
+class ContractTest extends FullStackTestBase {
 
     @Autowired
     MockMvc mvc;
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    ContractSeeder seeder;
+
+    @Autowired
+    StringRedisTemplate redis;
 
     static Stream<ContractCase> cases() throws IOException {
         Resource[] resources = new PathMatchingResourcePatternResolver()
@@ -50,9 +60,21 @@ class ContractTest extends MySqlTestBase {
         return cases.stream();
     }
 
+    @BeforeEach
+    void cleanRedis() {
+        redis.getConnectionFactory().getConnection().serverCommands().flushDb();
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("cases")
     void replays_node_contract(ContractCase contractCase) throws Exception {
+        seeder.apply(contractCase.seed());
+
+        if (contractCase.presetCode() != null || contractCase.loginAs() != null) {
+            throw new UnsupportedOperationException(
+                "presetCode/loginAs are implemented in the auth batch");
+        }
+
         MockHttpServletRequestBuilder request = switch (contractCase.method().toUpperCase()) {
             case "GET" -> MockMvcRequestBuilders.get(contractCase.path());
             case "POST" -> MockMvcRequestBuilders.post(contractCase.path());
