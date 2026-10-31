@@ -68,6 +68,40 @@ public class ReviewController {
             ipResolver.resolve(httpRequest)));
     }
 
+    @PostMapping("/{reviewId}/like")
+    public ResponseEntity<LikeResult> like(
+        @PathVariable String reviewId,
+        @AuthenticationPrincipal JwtPrincipal principal
+    ) {
+        return ResponseEntity.ok(reviewService.toggleLike(parseId(reviewId), principal.userId()));
+    }
+
+    @PostMapping("/{reviewId}/reply")
+    public ResponseEntity<ReplyView> reply(
+        @PathVariable String reviewId,
+        @AuthenticationPrincipal JwtPrincipal principal,
+        @RequestBody(required = false) ReplyRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(reviewService.reply(
+            parseId(reviewId), principal.userId(), request == null ? null : request.content()));
+    }
+
+    @PostMapping("/{reviewId}/report")
+    public ResponseEntity<ReportResult> report(
+        @PathVariable String reviewId,
+        @AuthenticationPrincipal JwtPrincipal principal,
+        @RequestBody(required = false) ReportRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(reviewService.report(
+            parseId(reviewId), principal.userId(), request == null ? null : request.reason()));
+    }
+
+    @GetMapping("/user/stats")
+    public ResponseEntity<Map<String, Long>> stats(@AuthenticationPrincipal JwtPrincipal principal) {
+        return ResponseEntity.ok(Map.of(
+            "receivedLikes", reviewService.receivedLikes(principal.userId())));
+    }
+
     @GetMapping("/items/{id}")
     public ResponseEntity<ReviewItemDetail> item(
         @PathVariable String id,

@@ -34,6 +34,7 @@ public class ReviewService {
     private final ReviewMapper reviews;
     private final LikeMapper likes;
     private final ReplyMapper replies;
+    private final ReportMapper reports;
     private final UserMapper users;
     private final QiniuUrlSigner signer;
     private final GuestUserService guestUsers;
@@ -46,6 +47,7 @@ public class ReviewService {
         ReviewMapper reviews,
         LikeMapper likes,
         ReplyMapper replies,
+        ReportMapper reports,
         UserMapper users,
         QiniuUrlSigner signer,
         GuestUserService guestUsers,
@@ -57,6 +59,7 @@ public class ReviewService {
         this.reviews = reviews;
         this.likes = likes;
         this.replies = replies;
+        this.reports = reports;
         this.users = users;
         this.signer = signer;
         this.guestUsers = guestUsers;
@@ -160,6 +163,99 @@ public class ReviewService {
             }
         }
         return signer.getSignedUrl(uploaded.key());
+    }
+
+    @Transactional
+    public LikeResult toggleLike(long reviewId, long userId) {
+        Review review = findReview(reviewId);
+        Like existing = likes.selectOne(new LambdaQueryWrapper<Like>()
+            .eq(Like::getUserId, userId)
+            .eq(Like::getReviewId, reviewId));
+
+        if (existing != null) {
+            likes.deleteById(existing.getId());
+            addExperience(review.getReviewerId(), -2);
+            return new LikeResult(false, -2);
+        }
+
+        Like like = new Like();
+        like.setUserId((int) userId);
+        like.setReviewId((int) reviewId);
+        like.setCreatedAt(java.time.LocalDateTime.now());
+        likes.insert(like);
+        addExperience(review.getReviewerId(), 2);
+        return new LikeResult(true, 2);
+    }
+
+    @Transactional
+    public ReplyView reply(long reviewId, long userId, String content) {
+        String normalized = content == null ? "" : content.trim();
+        if (normalized.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "内容是必填项");
+        }
+        if (sensitiveWords.contains(normalized)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "评论内容包含敏感词，请修改后再提交");
+        }
+        findReview(reviewId);
+
+        Reply reply = new Reply();
+        reply.setContent(normalized);
+        reply.setUserId((int) userId);
+        reply.setReviewId((int) reviewId);
+        reply.setCreatedAt(java.time.LocalDateTime.now());
+        replies.insert(reply);
+        return toReplyView(reply);
+    }
+
+    @Transactional
+    public ReportResult report(long reviewId, long userId, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "原因是必填项");
+        }
+        findReview(reviewId);
+
+        Report report = new Report();
+        report.setReason(reason);
+        report.setUserId((int) userId);
+        report.setReviewId((int) reviewId);
+        report.setCreatedAt(java.time.LocalDateTime.now());
+        reports.insert(report);
+        return new ReportResult("举报已提交", report.getId());
+    }
+
+    public long receivedLikes(long userId) {
+        List<Integer> reviewIds = reviews.selectList(new LambdaQueryWrapper<Review>()
+                .eq(Review::getReviewerId, userId))
+            .stream()
+            .map(Review::getId)
+            .toList();
+        if (reviewIds.isEmpty()) {
+            return 0;
+        }
+        return likes.selectCount(new LambdaQueryWrapper<Like>()
+            .in(Like::getReviewId, reviewIds));
+    }
+
+    private Review findReview(long reviewId) {
+        Review review = reviews.selectById(reviewId);
+        if (review == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "评价不存在");
+        }
+        return review;
+    }
+
+    private void addExperience(Integer userId, int delta) {
+        if (userId == null) {
+            return;
+        }
+        User user = users.selectById(userId);
+        if (user == null || "游客".equals(user.getUsername())) {
+            return;
+        }
+        users.update(null, new LambdaUpdateWrapper<User>()
+            .eq(User::getId, userId)
+            .ne(User::getUsername, "游客")
+            .setSql("experience = experience + " + delta));
     }
 
     @Transactional
