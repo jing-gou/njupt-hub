@@ -1,0 +1,33 @@
+name: njupt-hub-java
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: njupt_hub
+    ports:
+      - "3307:3306"
+    volumes:
+      - java_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  java:
+    build:
+      context: ./server-java
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/njupt_hub?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "13000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  java_mysql_data:
