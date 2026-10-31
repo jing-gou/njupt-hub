@@ -1,0 +1,17 @@
+{
+  "name": "resource-download",
+  "method": "GET",
+  "path": "/api/resources/2001/download-url",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "resources.sql"
+  ],
+  "expected": {
+    "status": 200,
+    "json": {
+      "downloadUrl": "https://kodo.test/public/math/outline.pdf"
+    }
+  },
+  "ignorePaths": []
+}

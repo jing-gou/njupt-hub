@@ -1,1 +1,16 @@
-{"name":"auth-send-code-success","method":"POST","path":"/api/auth/send-verification-code","headers":{},"body":{"email":"new@example.com"},"expected":{"status":200,"json":{"message":"验证码已发送"}},"ignorePaths":[]}
+{
+  "name": "auth-send-code-success",
+  "method": "POST",
+  "path": "/api/auth/send-verification-code",
+  "headers": {},
+  "body": {
+    "email": "new@example.com"
+  },
+  "expected": {
+    "status": 200,
+    "json": {
+      "message": "验证码已发送"
+    }
+  },
+  "ignorePaths": []
+}

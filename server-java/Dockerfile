@@ -7,6 +7,7 @@ COPY src src
 RUN ./mvnw -B -q package -DskipTests
 
 FROM eclipse-temurin:21-jre
+ENV TZ=UTC
 RUN useradd -r -u 1001 app
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar

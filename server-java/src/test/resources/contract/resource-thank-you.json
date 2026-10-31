@@ -1,0 +1,1 @@
+{"name":"resource-thank-you","method":"POST","path":"/api/resources/upload/thank-you","headers":{},"seed":["users.sql","resources.sql"],"loginAs":"alice","body":{"resourceIds":[2001,2003]},"expected":{"status":200,"json":{"message":"感谢邮件已发送","emailSent":true,"resourceCount":2}},"ignorePaths":[]}

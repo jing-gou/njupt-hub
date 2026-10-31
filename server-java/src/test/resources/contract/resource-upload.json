@@ -1,0 +1,60 @@
+{
+  "name": "resource-upload",
+  "method": "POST",
+  "path": "/api/resources/upload",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "resources.sql"
+  ],
+  "multipart": {
+    "fields": {
+      "course": [
+        "高等数学"
+      ],
+      "category": [
+        "复习资料"
+      ],
+      "titles": [
+        "资料A"
+      ],
+      "paths": [
+        "高等数学/第一章/资料A.txt"
+      ]
+    },
+    "files": [
+      {
+        "field": "files",
+        "filename": "中文资料.txt",
+        "contentType": "text/plain",
+        "resource": "contract/files/中文资料.txt"
+      }
+    ]
+  },
+  "expected": {
+    "status": 201,
+    "json": {
+      "items": [
+        {
+          "id": "<masked>",
+          "title": "资料A",
+          "course": "高等数学",
+          "category": "复习资料",
+          "status": "PENDING",
+          "fileUrl": "<masked>",
+          "fileName": "第一章/资料A.txt",
+          "fileSize": 5,
+          "mimeType": "text/plain",
+          "createdAt": "<masked>"
+        }
+      ]
+    }
+  },
+  "ignorePaths": [
+    "/items/*/id",
+    "/items/*/fileUrl",
+    "/items/*/createdAt"
+  ],
+  "type": "deviation",
+  "deviationRef": "B2-upload-shape"
+}

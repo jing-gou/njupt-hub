@@ -1,1 +1,16 @@
-{"name":"auth-send-reset-unknown","method":"POST","path":"/api/auth/send-reset-password-code","headers":{},"body":{"email":"nobody@example.com"},"expected":{"status":404,"json":{"message":"用户不存在"}},"ignorePaths":[]}
+{
+  "name": "auth-send-reset-unknown",
+  "method": "POST",
+  "path": "/api/auth/send-reset-password-code",
+  "headers": {},
+  "body": {
+    "email": "nobody@example.com"
+  },
+  "expected": {
+    "status": 404,
+    "json": {
+      "message": "用户不存在"
+    }
+  },
+  "ignorePaths": []
+}

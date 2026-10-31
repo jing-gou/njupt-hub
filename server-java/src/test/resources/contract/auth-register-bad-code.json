@@ -1,1 +1,24 @@
-{"name":"auth-register-bad-code","method":"POST","path":"/api/auth/register","headers":{},"presetCode":{"type":"verification","email":"new@example.com","code":"123456"},"body":{"username":"newuser","password":"Password123","email":"new@example.com","code":"000000"},"expected":{"status":400,"json":{"message":"验证码不正确"}},"ignorePaths":[]}
+{
+  "name": "auth-register-bad-code",
+  "method": "POST",
+  "path": "/api/auth/register",
+  "headers": {},
+  "presetCode": {
+    "type": "verification",
+    "email": "new@example.com",
+    "code": "446832"
+  },
+  "body": {
+    "username": "newuser",
+    "password": "Password123",
+    "email": "new@example.com",
+    "code": "000000"
+  },
+  "expected": {
+    "status": 400,
+    "json": {
+      "message": "验证码不正确"
+    }
+  },
+  "ignorePaths": []
+}

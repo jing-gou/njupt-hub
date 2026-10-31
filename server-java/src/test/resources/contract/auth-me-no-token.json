@@ -1,1 +1,13 @@
-{"name":"auth-me-no-token","method":"GET","path":"/api/auth/me","headers":{},"expected":{"status":401,"json":{"message":"未提供令牌"}},"ignorePaths":[]}
+{
+  "name": "auth-me-no-token",
+  "method": "GET",
+  "path": "/api/auth/me",
+  "headers": {},
+  "expected": {
+    "status": 401,
+    "json": {
+      "message": "未提供令牌"
+    }
+  },
+  "ignorePaths": []
+}

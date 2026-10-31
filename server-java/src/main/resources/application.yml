@@ -12,7 +12,11 @@ spring:
   application:
     name: njupt-hub
   jackson:
-    time-zone: Asia/Shanghai
+    time-zone: UTC
+  servlet:
+    multipart:
+      max-file-size: 150MB
+      max-request-size: 4GB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/njupt_hub?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
     username: ${SPRING_DATASOURCE_USERNAME:root}
@@ -33,7 +37,7 @@ spring:
     username: ${SMTP_USER:}
     password: ${SMTP_PASS:}
     properties:
-      mail.smtp.auth: true
+      mail.smtp.auth: ${SMTP_AUTH:true}
       mail.smtp.ssl.enable: ${SMTP_SECURE:true}
       mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
       mail.smtp.ssl.trust: "*"

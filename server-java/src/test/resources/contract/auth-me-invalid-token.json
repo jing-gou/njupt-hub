@@ -1,1 +1,15 @@
-{"name":"auth-me-invalid-token","method":"GET","path":"/api/auth/me","headers":{"Authorization":"Bearer invalid"},"expected":{"status":401,"json":{"message":"无效的令牌"}},"ignorePaths":[]}
+{
+  "name": "auth-me-invalid-token",
+  "method": "GET",
+  "path": "/api/auth/me",
+  "headers": {
+    "Authorization": "Bearer invalid"
+  },
+  "expected": {
+    "status": 401,
+    "json": {
+      "message": "无效的令牌"
+    }
+  },
+  "ignorePaths": []
+}

@@ -1,0 +1,110 @@
+{
+  "name": "resource-list",
+  "method": "GET",
+  "path": "/api/resources",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "resources.sql"
+  ],
+  "expected": {
+    "status": 200,
+    "json": {
+      "items": [
+        {
+          "id": 2005,
+          "title": "高等数学试卷",
+          "description": "往年试卷",
+          "fileUrl": "https://kodo.test/public/math/exam.pdf",
+          "course": "高等数学",
+          "downloadCount": 30,
+          "createdAt": "2026-10-31T17:30:27.986Z",
+          "uploaderId": 1002,
+          "status": "APPROVED",
+          "updatedAt": "2026-10-31T17:30:22.986Z",
+          "category": "试卷",
+          "fileKey": "public/math/exam.pdf",
+          "fileName": "exam.pdf",
+          "fileSize": 8192,
+          "mimeType": "application/pdf",
+          "thankYouEmailSentAt": null,
+          "reviewResultEmailSentAt": null,
+          "reviewResultEmailStatus": null,
+          "uploader": {
+            "id": 1002,
+            "username": "bob",
+            "email": "bob@example.com",
+            "role": "USER"
+          }
+        },
+        {
+          "id": 2003,
+          "title": "被拒绝的资料",
+          "description": "测试拒绝状态",
+          "fileUrl": "https://kodo.test/pending/math/rejected.pdf",
+          "course": "高等数学",
+          "downloadCount": 0,
+          "createdAt": "2026-10-31T17:30:25.986Z",
+          "uploaderId": 1001,
+          "status": "REJECTED",
+          "updatedAt": "2026-10-31T17:30:22.986Z",
+          "category": "其他",
+          "fileKey": null,
+          "fileName": "rejected.pdf",
+          "fileSize": 512,
+          "mimeType": "application/pdf",
+          "thankYouEmailSentAt": null,
+          "reviewResultEmailSentAt": null,
+          "reviewResultEmailStatus": null,
+          "uploader": {
+            "id": 1001,
+            "username": "alice",
+            "email": "alice@example.com",
+            "role": "USER"
+          }
+        },
+        {
+          "id": 2001,
+          "title": "高等数学期末复习提纲",
+          "description": "覆盖极限、导数、积分",
+          "fileUrl": "https://kodo.test/public/math/outline.pdf",
+          "course": "高等数学",
+          "downloadCount": 10,
+          "createdAt": "2026-10-31T17:30:23.986Z",
+          "uploaderId": 1001,
+          "status": "APPROVED",
+          "updatedAt": "2026-10-31T17:30:22.986Z",
+          "category": "复习资料",
+          "fileKey": "public/math/outline.pdf",
+          "fileName": "outline.pdf",
+          "fileSize": 1024,
+          "mimeType": "application/pdf",
+          "thankYouEmailSentAt": null,
+          "reviewResultEmailSentAt": null,
+          "reviewResultEmailStatus": null,
+          "uploader": {
+            "id": 1001,
+            "username": "alice",
+            "email": "alice@example.com",
+            "role": "USER"
+          }
+        }
+      ],
+      "page": 1,
+      "pageSize": 10,
+      "total": 3
+    }
+  },
+  "ignorePaths": [
+    "/items/*/createdAt",
+    "/items/*/updatedAt"
+  ],
+  "params": {
+    "course": [
+      "高等数学"
+    ],
+    "pageSize": [
+      "10"
+    ]
+  }
+}

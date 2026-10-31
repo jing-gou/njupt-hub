@@ -22,12 +22,14 @@ import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
 import com.njupt.hub.auth.user.UserView;
 import com.njupt.hub.common.api.ApiException;
+import com.njupt.hub.resource.storage.QiniuStorage;
 import com.njupt.hub.sensitive.SensitiveWordFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class AuthService {
@@ -44,6 +46,7 @@ public class AuthService {
     private final ClientIpResolver ipResolver;
     private final SensitiveWordFilter sensitiveWords;
     private final QiniuUrlSigner urlSigner;
+    private final QiniuStorage storage;
     private final RateLimitProperties rateLimits;
 
     public AuthService(
@@ -56,6 +59,7 @@ public class AuthService {
         ClientIpResolver ipResolver,
         SensitiveWordFilter sensitiveWords,
         QiniuUrlSigner urlSigner,
+        QiniuStorage storage,
         RateLimitProperties rateLimits
     ) {
         this.users = users;
@@ -67,6 +71,7 @@ public class AuthService {
         this.ipResolver = ipResolver;
         this.sensitiveWords = sensitiveWords;
         this.urlSigner = urlSigner;
+        this.storage = storage;
         this.rateLimits = rateLimits;
     }
 
@@ -151,6 +156,44 @@ public class AuthService {
             sessionCreated ? jti : null);
 
         return new LoginResult(token, ExperienceCalculator.toView(user, urlSigner));
+    }
+
+    @Transactional
+    public UserView uploadAvatar(long userId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "未上传头像文件");
+        }
+
+        User user = users.selectById(userId);
+        if (user == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "用户不存在");
+        }
+
+        byte[] data;
+        try {
+            data = file.getBytes();
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException("Failed to read avatar", ex);
+        }
+
+        QiniuStorage.UploadResult uploaded = storage.upload(
+            data,
+            file.getOriginalFilename() == null ? "avatar" : file.getOriginalFilename(),
+            "assets",
+            "avatars",
+            file.getContentType());
+
+        if (user.getAvatarKey() != null && !user.getAvatarKey().isBlank()) {
+            try {
+                storage.delete(user.getAvatarKey());
+            } catch (RuntimeException ignored) {
+                // old avatar cleanup is best-effort
+            }
+        }
+
+        user.setAvatarKey(uploaded.key());
+        users.updateById(user);
+        return ExperienceCalculator.toView(user, urlSigner);
     }
 
     public UserView getMe(long userId) {
