@@ -18,20 +18,27 @@ import org.springframework.stereotype.Component;
 @Component
 public class QiniuStorageClient implements QiniuStorage {
 
-    private final Auth auth;
+    private final String accessKey;
+    private final String secretKey;
     private final Configuration configuration;
     private final UploadManager uploadManager;
-    private final BucketManager bucketManager;
     private final String bucket;
     private final QiniuUrlSigner signer;
 
     public QiniuStorageClient(QiniuProperties properties, QiniuUrlSigner signer) {
-        this.auth = Auth.create(properties.accessKey(), properties.secretKey());
+        this.accessKey = properties.accessKey();
+        this.secretKey = properties.secretKey();
         this.configuration = new Configuration(Region.autoRegion());
         this.uploadManager = new UploadManager(configuration);
-        this.bucketManager = new BucketManager(auth, configuration);
         this.bucket = properties.bucket();
         this.signer = signer;
+    }
+
+    private Auth auth() {
+        if (accessKey == null || accessKey.isBlank() || secretKey == null || secretKey.isBlank()) {
+            throw new QiniuStorageException("Qiniu credentials are not configured");
+        }
+        return Auth.create(accessKey, secretKey);
     }
 
     @Override
@@ -39,7 +46,7 @@ public class QiniuStorageClient implements QiniuStorage {
                                String contentType) {
         String key = buildKey(prefix, subPath, originalName);
         try {
-            String token = auth.uploadToken(bucket);
+            String token = auth().uploadToken(bucket);
             StringMap params = new StringMap();
             if (contentType != null && !contentType.isBlank()) {
                 params.put("mimeType", contentType);
@@ -58,6 +65,7 @@ public class QiniuStorageClient implements QiniuStorage {
     @Override
     public void move(String sourceKey, String destinationKey) {
         try {
+            BucketManager bucketManager = new BucketManager(auth(), configuration);
             Response response = bucketManager.move(bucket, sourceKey, bucket, destinationKey);
             if (!response.isOK()) {
                 throw new QiniuStorageException("Qiniu move failed: " + response.bodyString());
@@ -70,6 +78,7 @@ public class QiniuStorageClient implements QiniuStorage {
     @Override
     public void delete(String key) {
         try {
+            BucketManager bucketManager = new BucketManager(auth(), configuration);
             Response response = bucketManager.delete(bucket, key);
             if (!response.isOK()) {
                 throw new QiniuStorageException("Qiniu delete failed: " + response.bodyString());
