@@ -122,7 +122,7 @@ public class SmtpMailService implements MailService {
         send(to, subject, null, html);
     }
 
-    private void send(String to, String subject, String text, String html) {
+    public void send(String to, String subject, String text, String html) {
         if (sender.getHost() == null || sender.getHost().isBlank()) {
             throw new IllegalStateException("SMTP configuration is incomplete: SMTP_HOST");
         }
