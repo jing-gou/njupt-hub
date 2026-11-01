@@ -3,6 +3,7 @@ name: njupt-hub-prod-java
 services:
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - prod_java_redis_data:/data
@@ -13,6 +14,7 @@ services:
       retries: 20
 
   java:
+    restart: unless-stopped
     build:
       context: ./server-java
     environment:
@@ -23,6 +25,7 @@ services:
       REDIS_PORT: "6379"
       SPRING_PROFILES_ACTIVE: prod
       JWT_SECRET: ${JWT_SECRET}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,127.0.0.1,::1}
       QINIU_ACCESS_KEY: ${QINIU_ACCESS_KEY}
       QINIU_SECRET_KEY: ${QINIU_SECRET_KEY}
       QINIU_BUCKET: ${QINIU_BUCKET}
@@ -38,6 +41,9 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
+      APP_LEGACY_UPLOADS_DIR: /app/uploads
+    volumes:
+      - ${LEGACY_UPLOADS_HOST_DIR:-./server/uploads}:/app/uploads:ro
     networks:
       default:
         aliases:
@@ -46,7 +52,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "13000:3000"
+      - "127.0.0.1:13000:3000"
 
 networks:
   default:

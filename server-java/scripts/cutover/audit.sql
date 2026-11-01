@@ -50,5 +50,17 @@ FROM `Resource` WHERE fileUrl NOT LIKE 'http%';
 SELECT 'file_url.legacy_domain' AS metric, COUNT(*) AS value
 FROM `Resource` WHERE fileUrl LIKE '%kodo.sugarfun.xyz%';
 
+SELECT 'file_key.local_uploads' AS metric, COUNT(*) AS value
+FROM `Resource` WHERE fileKey LIKE '/uploads/%' OR fileKey LIKE 'uploads/%';
+
+SELECT 'file_url.avatar_local' AS metric, COUNT(*) AS value
+FROM `User` WHERE avatarKey LIKE '/uploads/%' OR avatarKey LIKE 'uploads/%';
+
+SELECT 'file_url.review_image_local' AS metric, COUNT(*) AS value
+FROM `Review` WHERE imageUrl LIKE '/uploads/%' OR imageUrl LIKE 'uploads/%';
+
+SELECT 'file_url.item_image_local' AS metric, COUNT(*) AS value
+FROM `ReviewableItem` WHERE imageUrl LIKE '/uploads/%' OR imageUrl LIKE 'uploads/%';
+
 SELECT 'time.min_createdAt' AS metric, MIN(createdAt) AS value FROM `Resource`;
 SELECT 'time.max_createdAt' AS metric, MAX(createdAt) AS value FROM `Resource`;

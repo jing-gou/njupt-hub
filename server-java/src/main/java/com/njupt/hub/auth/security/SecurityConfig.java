@@ -42,7 +42,9 @@ public class SecurityConfig {
                     "/api/auth/send-verification-code",
                     "/api/auth/send-reset-password-code",
                     "/api/auth/reset-password",
-                    "/api/auth/leaderboard"
+                    "/api/auth/leaderboard",
+                    "/api/meta/commits",
+                    "/uploads/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/resources/**", "/api/reviews/items",
                     "/api/reviews/items/**").permitAll()

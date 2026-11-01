@@ -18,6 +18,10 @@ bad_password_hash	0
 file_url.local_uploads	1
 file_url.non_http	1
 file_url.legacy_domain	0
+file_key.local_uploads	0
+file_url.avatar_local	0
+file_url.review_image_local	0
+file_url.item_image_local	0
 time.min_createdAt	2026-01-02 00:00:00.000
 time.max_createdAt	2026-01-03 00:00:00.000
 BLOCK orphan.Resource.uploaderId=1

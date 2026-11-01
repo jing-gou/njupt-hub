@@ -34,7 +34,7 @@ while IFS=$'\t' read -r metric value; do
         status=1
       fi
       ;;
-    file_url.*)
+    file_url.*|file_key.*)
       if [[ "$value" != "0" ]]; then
         echo "WARN $metric=$value"
       fi

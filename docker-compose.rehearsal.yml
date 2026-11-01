@@ -1,11 +1,26 @@
 services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8026:8025"
+      - "1026:1025"
+
   java:
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/njupt_hub_rehearsal?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/njupt_hub_rehearsal?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_PROFILES_ACTIVE: rehearsal
+      JWT_SECRET: ${JWT_SECRET}
+      QINIU_ACCESS_KEY: ${QINIU_ACCESS_KEY}
+      QINIU_SECRET_KEY: ${QINIU_SECRET_KEY}
+      QINIU_BUCKET: ${QINIU_BUCKET}
+      QINIU_DOMAIN: ${QINIU_DOMAIN}
+      QINIU_LEGACY_DOMAINS: ${QINIU_LEGACY_DOMAINS:-}
+      QINIU_PROTOCOL: ${QINIU_PROTOCOL:-https}
+      QINIU_IS_PRIVATE: ${QINIU_IS_PRIVATE:-false}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       SMTP_SECURE: "false"
       SMTP_AUTH: "false"
       SMTP_STARTTLS: "false"
+      SMTP_FROM: noreply@njupt.hub
       MAIL_OUTBOX_POLL_INTERVAL: "3600000"
