@@ -1,0 +1,13 @@
+{
+  "name": "review-item-missing",
+  "method": "GET",
+  "path": "/api/reviews/items/999999",
+  "headers": {},
+  "expected": {
+    "status": 404,
+    "json": {
+      "message": "项目未找到"
+    }
+  },
+  "ignorePaths": []
+}

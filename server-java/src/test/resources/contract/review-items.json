@@ -1,0 +1,103 @@
+{
+  "name": "review-items",
+  "method": "GET",
+  "path": "/api/reviews/items",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "expected": {
+    "status": 200,
+    "json": [
+      {
+        "id": 3001,
+        "title": "张老师",
+        "description": "高数辅导",
+        "imageUrl": "https://kodo.test/assets/items/mentor.png",
+        "type": "MENTOR",
+        "location": "教三楼",
+        "college": "理学院",
+        "avgRating": 4.5,
+        "reviewCount": 2,
+        "reviews": [
+          {
+            "id": 4001,
+            "rating": 5,
+            "comment": "讲得很清楚",
+            "ip": "127.0.0.1",
+            "createdAt": "2026-10-31T18:06:27.635Z",
+            "reviewerId": 1001,
+            "updatedAt": "2026-10-31T19:06:27.635Z",
+            "imageUrl": "",
+            "status": "APPROVED",
+            "itemId": 3001,
+            "reviewer": {
+              "username": "alice",
+              "avatarKey": "assets/avatars/alice.png",
+              "avatarUrl": "https://kodo.test/assets/avatars/alice.png"
+            }
+          }
+        ]
+      },
+      {
+        "id": 3002,
+        "title": "第一食堂",
+        "description": "一楼窗口",
+        "imageUrl": "",
+        "type": "CANTEEN",
+        "location": "一食堂",
+        "college": null,
+        "avgRating": 3,
+        "reviewCount": 2,
+        "reviews": [
+          {
+            "id": 4006,
+            "rating": 2,
+            "comment": "很久以前",
+            "ip": "127.0.0.1",
+            "createdAt": "2026-10-30T18:06:27.635Z",
+            "reviewerId": 1001,
+            "updatedAt": "2026-10-31T19:06:27.635Z",
+            "imageUrl": "",
+            "status": "APPROVED",
+            "itemId": 3002,
+            "reviewer": {
+              "username": "alice",
+              "avatarKey": "assets/avatars/alice.png",
+              "avatarUrl": "https://kodo.test/assets/avatars/alice.png"
+            }
+          }
+        ]
+      },
+      {
+        "id": 3003,
+        "title": "老王外卖",
+        "description": "夜宵",
+        "imageUrl": "",
+        "type": "TAKEOUT",
+        "location": "校外",
+        "college": null,
+        "avgRating": 4,
+        "reviewCount": 0,
+        "reviews": []
+      },
+      {
+        "id": 3004,
+        "title": "李老师",
+        "description": "英语辅导",
+        "imageUrl": "",
+        "type": "MENTOR",
+        "location": "教一楼",
+        "college": "外国语学院",
+        "avgRating": 0,
+        "reviewCount": 0,
+        "reviews": []
+      }
+    ]
+  },
+  "ignorePaths": [
+    "/*/reviews/*/createdAt",
+    "/*/reviews/*/updatedAt"
+  ]
+}

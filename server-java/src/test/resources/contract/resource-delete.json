@@ -1,1 +1,20 @@
-{"name":"resource-delete","method":"DELETE","path":"/api/resources/2003","headers":{},"seed":["users.sql","resources.sql"],"loginAs":"admin","expected":{"status":200,"json":{"message":"资源已删除"}},"ignorePaths":[]}
+{
+  "name": "resource-delete",
+  "method": "DELETE",
+  "path": "/api/resources/2003",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "resources.sql"
+  ],
+  "loginAs": "admin",
+  "expected": {
+    "status": 200,
+    "json": {
+      "message": "资源已删除"
+    }
+  },
+  "ignorePaths": [],
+  "type": "deviation",
+  "deviationRef": "B3-qiniu-network-shape"
+}

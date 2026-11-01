@@ -17,6 +17,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.njupt.hub.auth.avatar.QiniuUrlSigner;
 import com.njupt.hub.auth.limit.RateLimiter;
 import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.user.GuestUserService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
 import com.njupt.hub.common.api.ApiException;
@@ -41,6 +42,7 @@ public class ResourceService {
     private final QiniuStorage storage;
     private final MailService mailService;
     private final RateLimiter rateLimiter;
+    private final GuestUserService guestUserService;
 
     public ResourceService(
         ResourceMapper resources,
@@ -48,7 +50,8 @@ public class ResourceService {
         QiniuUrlSigner signer,
         QiniuStorage storage,
         MailService mailService,
-        RateLimiter rateLimiter
+        RateLimiter rateLimiter,
+        GuestUserService guestUserService
     ) {
         this.resources = resources;
         this.users = users;
@@ -56,6 +59,7 @@ public class ResourceService {
         this.storage = storage;
         this.mailService = mailService;
         this.rateLimiter = rateLimiter;
+        this.guestUserService = guestUserService;
     }
 
     public ResourcePage list(ResourceQuery query) {
@@ -115,7 +119,7 @@ public class ResourceService {
             throw new ApiException(HttpStatus.NOT_FOUND, "用户不存在");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         Resource resource = new Resource();
         resource.setTitle(String.valueOf(title));
         resource.setDescription(request.description() == null ? null : String.valueOf(request.description()));
@@ -188,7 +192,7 @@ public class ResourceService {
                 normalizedCourse,
                 file.getContentType());
 
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             Resource resource = new Resource();
             resource.setTitle(String.valueOf(title));
             resource.setFileUrl(storage.rawUrl(uploaded.key()));
@@ -254,7 +258,7 @@ public class ResourceService {
 
         Resource resource = findResource(id);
         String previous = resource.getStatus();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         if ("APPROVED".equals(status)
             && resource.getFileKey() != null
@@ -347,7 +351,7 @@ public class ResourceService {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "资料上传成功，但感谢邮件暂时发送失败");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         resources.update(null, new LambdaUpdateWrapper<Resource>()
             .in(Resource::getId, resourcesToMail.stream().map(Resource::getId).toList())
             .eq(Resource::getUploaderId, userId)
@@ -365,7 +369,7 @@ public class ResourceService {
         }
         Resource resource = findResource(id);
         resource.setTitle(nextTitle);
-        resource.setUpdatedAt(LocalDateTime.now());
+        resource.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         resources.updateById(resource);
         return toView(resource, users.selectById(resource.getUploaderId()));
     }
@@ -408,7 +412,7 @@ public class ResourceService {
 
         try {
             mailService.sendResourceReviewResultEmail(uploader.getEmail(), uploader.getUsername(), resource);
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             resources.update(null, new LambdaUpdateWrapper<Resource>()
                 .eq(Resource::getId, resource.getId())
                 .set(Resource::getReviewResultEmailSentAt, now)
@@ -446,18 +450,7 @@ public class ResourceService {
     }
 
     private User guestUser() {
-        User guest = users.selectOne(
-            new LambdaQueryWrapper<User>().eq(User::getUsername, "游客"));
-        if (guest != null) {
-            return guest;
-        }
-
-        users.insertGuestIgnore();
-        guest = users.selectGuestForUpdate();
-        if (guest == null) {
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "游客用户创建失败");
-        }
-        return guest;
+        return guestUserService.getOrCreate();
     }
 
     private String normalizeCourse(String course) {

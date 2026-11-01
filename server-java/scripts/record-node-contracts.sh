@@ -32,26 +32,39 @@ docker compose -f "${COMPOSE_FILE}" exec -T mysql \
   mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
   < "${JAVA_ROOT}/src/main/resources/db/migration/V1__baseline.sql"
 
-docker compose -f "${COMPOSE_FILE}" exec -T mysql \
-  mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
-  < "${JAVA_ROOT}/src/test/resources/contract/seed/users.sql"
-
-if [[ -f "${JAVA_ROOT}/src/test/resources/contract/seed/resources.sql" ]]; then
+reset_db() {
   docker compose -f "${COMPOSE_FILE}" exec -T mysql \
     mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
-    < "${JAVA_ROOT}/src/test/resources/contract/seed/resources.sql"
-fi
+    -e "SET FOREIGN_KEY_CHECKS=0; TRUNCATE TABLE \`Like\`; TRUNCATE TABLE \`Reply\`; TRUNCATE TABLE \`Report\`; TRUNCATE TABLE \`Review\`; TRUNCATE TABLE \`ReviewableItem\`; TRUNCATE TABLE \`Resource\`; TRUNCATE TABLE \`User\`; SET FOREIGN_KEY_CHECKS=1;"
+
+  docker compose -f "${COMPOSE_FILE}" exec -T mysql \
+    mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
+    < "${JAVA_ROOT}/src/test/resources/contract/seed/users.sql"
+
+  if [[ -f "${JAVA_ROOT}/src/test/resources/contract/seed/resources.sql" ]]; then
+    docker compose -f "${COMPOSE_FILE}" exec -T mysql \
+      mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
+      < "${JAVA_ROOT}/src/test/resources/contract/seed/resources.sql"
+  fi
+
+  if [[ -f "${JAVA_ROOT}/src/test/resources/contract/seed/reviews.sql" ]]; then
+    docker compose -f "${COMPOSE_FILE}" exec -T mysql \
+      mysql --default-character-set=utf8mb4 -uroot -proot njupt_hub \
+      < "${JAVA_ROOT}/src/test/resources/contract/seed/reviews.sql"
+  fi
+}
 
 (
   cd "${REPO_ROOT}/server"
-  DATABASE_URL='mysql://root:root@127.0.0.1:3307/njupt_hub?allowPublicKeyRetrieval=true' \
-  JWT_SECRET='test-secret-please-change-32-bytes-min' \
-  PORT=3200 \
-  SMTP_HOST=127.0.0.1 SMTP_PORT=1025 SMTP_SECURE=false \
-  SMTP_USER=mailpit SMTP_PASS=mailpit SMTP_FROM=noreply@njupt.hub \
-  QINIU_ACCESS_KEY=test QINIU_SECRET_KEY=test QINIU_BUCKET=test \
-  QINIU_DOMAIN=kodo.test QINIU_PROTOCOL=https QINIU_IS_PRIVATE=false \
-  node src/index.js
+  exec env \
+    DATABASE_URL='mysql://root:root@127.0.0.1:3307/njupt_hub?allowPublicKeyRetrieval=true' \
+    JWT_SECRET='test-secret-please-change-32-bytes-min' \
+    PORT=3200 \
+    SMTP_HOST=127.0.0.1 SMTP_PORT=1025 SMTP_SECURE=false \
+    SMTP_USER=mailpit SMTP_PASS=mailpit SMTP_FROM=noreply@njupt.hub \
+    QINIU_ACCESS_KEY=test QINIU_SECRET_KEY=test QINIU_BUCKET=test \
+    QINIU_DOMAIN=kodo.test QINIU_PROTOCOL=https QINIU_IS_PRIVATE=false \
+    node src/index.js
 ) > /tmp/njupt-hub-node-record.log 2>&1 &
 NODE_PID=$!
 
@@ -63,5 +76,9 @@ for _ in $(seq 1 60); do
 done
 
 cd "${JAVA_ROOT}"
-RECORD_BASE_URL=http://localhost:3200 MAILPIT_URL=http://localhost:8025 \
-  node scripts/record-node-contracts.mjs
+while IFS= read -r name <&3; do
+  reset_db
+  curl -fsS -X DELETE http://localhost:8025/api/v1/messages >/dev/null 2>&1 || true
+  RECORD_BASE_URL=http://localhost:3200 MAILPIT_URL=http://localhost:8025 \
+    node scripts/record-node-contracts.mjs --only "${name}" < /dev/null
+done 3< <(jq -r '.[]' scripts/contract-manifest.json)

@@ -1,0 +1,91 @@
+{
+  "name": "review-item-detail",
+  "method": "GET",
+  "path": "/api/reviews/items/3001",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "expected": {
+    "status": 200,
+    "json": {
+      "id": 3001,
+      "title": "张老师",
+      "description": "高数辅导",
+      "imageUrl": "https://kodo.test/assets/items/mentor.png",
+      "type": "MENTOR",
+      "location": "教三楼",
+      "college": "理学院",
+      "avgRating": 4.5,
+      "reviewCount": 3,
+      "reviews": [
+        {
+          "id": 4001,
+          "rating": 5,
+          "comment": "讲得很清楚",
+          "ip": "127.0.0.1",
+          "createdAt": "2026-10-31T18:06:28.301Z",
+          "reviewerId": 1001,
+          "updatedAt": "2026-10-31T19:06:28.301Z",
+          "imageUrl": "",
+          "status": "APPROVED",
+          "itemId": 3001,
+          "reviewer": {
+            "username": "alice",
+            "avatarKey": "assets/avatars/alice.png",
+            "avatarUrl": "https://kodo.test/assets/avatars/alice.png"
+          },
+          "likes": [
+            {
+              "userId": 1002
+            },
+            {
+              "userId": 1003
+            }
+          ],
+          "replies": [
+            {
+              "id": 6001,
+              "content": "同意",
+              "userId": 1002,
+              "reviewId": 4001,
+              "createdAt": "2026-10-31T19:06:28.305Z",
+              "user": {
+                "username": "bob"
+              }
+            }
+          ],
+          "isLiked": false,
+          "likesCount": 2
+        },
+        {
+          "id": 4005,
+          "rating": 1,
+          "comment": null,
+          "ip": "127.0.0.1",
+          "createdAt": "2026-10-31T14:06:28.301Z",
+          "reviewerId": 1004,
+          "updatedAt": "2026-10-31T19:06:28.301Z",
+          "imageUrl": "",
+          "status": "APPROVED",
+          "itemId": 3001,
+          "reviewer": {
+            "username": "游客",
+            "avatarKey": null,
+            "avatarUrl": ""
+          },
+          "likes": [],
+          "replies": [],
+          "isLiked": false,
+          "likesCount": 0
+        }
+      ]
+    }
+  },
+  "ignorePaths": [
+    "/reviews/*/createdAt",
+    "/reviews/*/updatedAt",
+    "/reviews/*/replies/*/createdAt"
+  ]
+}

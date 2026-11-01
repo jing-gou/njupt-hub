@@ -1,0 +1,38 @@
+{
+  "name": "review-own-update",
+  "method": "PATCH",
+  "path": "/api/reviews/4001",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "alice",
+  "body": {
+    "rating": 4,
+    "comment": "更新"
+  },
+  "expected": {
+    "status": 200,
+    "json": {
+      "id": 4001,
+      "rating": 4,
+      "comment": "更新",
+      "ip": "127.0.0.1",
+      "createdAt": "2026-10-31T18:06:32.218Z",
+      "reviewerId": 1001,
+      "updatedAt": "2026-10-31T19:06:32.480Z",
+      "imageUrl": "",
+      "status": "PENDING",
+      "itemId": 3001,
+      "reviewer": {
+        "username": "alice"
+      },
+      "message": "修改已提交，审核通过后公开展示"
+    }
+  },
+  "ignorePaths": [
+    "/createdAt",
+    "/updatedAt"
+  ]
+}

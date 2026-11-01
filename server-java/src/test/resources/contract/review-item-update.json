@@ -1,0 +1,33 @@
+{
+  "name": "review-item-update",
+  "method": "PATCH",
+  "path": "/api/reviews/admin/items/3001",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "admin",
+  "body": {
+    "title": "新老师改"
+  },
+  "expected": {
+    "status": 200,
+    "json": {
+      "id": 3001,
+      "title": "新老师改",
+      "description": "高数辅导",
+      "imageUrl": "https://kodo.test/assets/items/mentor.png",
+      "type": "MENTOR",
+      "location": "教三楼",
+      "college": "理学院",
+      "avgRating": 4.5,
+      "createdAt": "2026-10-31T19:06:37.866Z",
+      "updatedAt": "2026-10-31T19:06:38.136Z"
+    }
+  },
+  "ignorePaths": [
+    "/createdAt",
+    "/updatedAt"
+  ]
+}

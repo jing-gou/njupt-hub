@@ -10,7 +10,9 @@ import org.testcontainers.containers.MySQLContainer;
 public abstract class MySqlTestBase {
 
     @ServiceConnection
-    protected static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.0");
+    protected static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.0")
+        .withEnv("TZ", "UTC")
+        .withUrlParam("serverTimezone", "UTC");
 
     static {
         MYSQL.start();

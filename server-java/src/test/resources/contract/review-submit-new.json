@@ -1,0 +1,39 @@
+{
+  "name": "review-submit-new",
+  "method": "POST",
+  "path": "/api/reviews/submit",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "alice",
+  "body": {
+    "itemId": 3004,
+    "rating": 5
+  },
+  "expected": {
+    "status": 201,
+    "json": {
+      "id": 4007,
+      "rating": 5,
+      "comment": null,
+      "ip": "::ffff:127.0.0.1",
+      "createdAt": "2026-10-31T19:06:29.253Z",
+      "reviewerId": 1001,
+      "updatedAt": "2026-10-31T19:06:29.253Z",
+      "imageUrl": "",
+      "status": "APPROVED",
+      "itemId": 3004,
+      "reviewer": {
+        "username": "alice"
+      }
+    }
+  },
+  "ignorePaths": [
+    "/id",
+    "/createdAt",
+    "/updatedAt",
+    "/ip"
+  ]
+}

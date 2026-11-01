@@ -1,0 +1,14 @@
+{
+  "name": "review-submit-missing",
+  "method": "POST",
+  "path": "/api/reviews/submit",
+  "headers": {},
+  "body": {},
+  "expected": {
+    "status": 400,
+    "json": {
+      "message": "项目 ID 和评分均为必填项"
+    }
+  },
+  "ignorePaths": []
+}

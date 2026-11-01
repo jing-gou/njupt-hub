@@ -1,0 +1,37 @@
+{
+  "name": "review-item-create",
+  "method": "POST",
+  "path": "/api/reviews/items",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "admin",
+  "body": {
+    "title": "新老师",
+    "type": "MENTOR",
+    "location": "教二楼",
+    "college": "理学院"
+  },
+  "expected": {
+    "status": 201,
+    "json": {
+      "id": 3005,
+      "title": "新老师",
+      "description": null,
+      "imageUrl": "",
+      "type": "MENTOR",
+      "location": "教二楼",
+      "college": "理学院",
+      "avgRating": 0,
+      "createdAt": "2026-10-31T19:06:37.327Z",
+      "updatedAt": "2026-10-31T19:06:37.327Z"
+    }
+  },
+  "ignorePaths": [
+    "/id",
+    "/createdAt",
+    "/updatedAt"
+  ]
+}

@@ -1,1 +1,47 @@
-{"name":"resource-meta","method":"PATCH","path":"/api/resources/2001/meta","headers":{},"seed":["users.sql","resources.sql"],"loginAs":"admin","body":{"title":"新标题"},"expected":{"status":200,"json":{"id":2001,"title":"新标题","description":"覆盖极限、导数、积分","fileUrl":"https://kodo.test/public/math/outline.pdf","course":"高等数学","downloadCount":10,"createdAt":"<masked>","uploaderId":1001,"status":"APPROVED","updatedAt":"<masked>","category":"复习资料","fileKey":"public/math/outline.pdf","fileName":"outline.pdf","fileSize":1024,"mimeType":"application/pdf","thankYouEmailSentAt":null,"reviewResultEmailSentAt":null,"reviewResultEmailStatus":null,"uploader":{"id":1001,"username":"alice","email":"alice@example.com","role":"USER"}}},"ignorePaths":["/createdAt","/updatedAt"]}
+{
+  "name": "resource-meta",
+  "method": "PATCH",
+  "path": "/api/resources/2001/meta",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "resources.sql"
+  ],
+  "loginAs": "admin",
+  "body": {
+    "title": "新标题"
+  },
+  "expected": {
+    "status": 200,
+    "json": {
+      "id": 2001,
+      "title": "新标题",
+      "description": "覆盖极限、导数、积分",
+      "fileUrl": "https://kodo.test/public/math/outline.pdf",
+      "course": "高等数学",
+      "downloadCount": 10,
+      "createdAt": "2026-10-31T19:06:26.885Z",
+      "uploaderId": 1001,
+      "status": "APPROVED",
+      "updatedAt": "2026-10-31T19:06:26.241Z",
+      "category": "复习资料",
+      "fileKey": "public/math/outline.pdf",
+      "fileName": "outline.pdf",
+      "fileSize": 1024,
+      "mimeType": "application/pdf",
+      "thankYouEmailSentAt": null,
+      "reviewResultEmailSentAt": null,
+      "reviewResultEmailStatus": null,
+      "uploader": {
+        "id": 1001,
+        "username": "alice",
+        "email": "alice@example.com",
+        "role": "USER"
+      }
+    }
+  },
+  "ignorePaths": [
+    "/createdAt",
+    "/updatedAt"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "review-reply",
+  "method": "POST",
+  "path": "/api/reviews/4001/reply",
+  "headers": {},
+  "seed": [
+    "users.sql",
+    "reviews.sql"
+  ],
+  "loginAs": "alice",
+  "body": {
+    "content": "同意"
+  },
+  "expected": {
+    "status": 201,
+    "json": {
+      "id": 6002,
+      "content": "同意",
+      "userId": 1001,
+      "reviewId": 4001,
+      "createdAt": "2026-10-31T19:06:30.864Z",
+      "user": {
+        "username": "alice"
+      }
+    }
+  },
+  "ignorePaths": [
+    "/id",
+    "/createdAt"
+  ]
+}
