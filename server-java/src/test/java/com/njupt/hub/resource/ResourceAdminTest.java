@@ -67,6 +67,8 @@ class ResourceAdminTest extends FullStackTestBase {
         when(storage.rawUrl(anyString())).thenAnswer(invocation ->
             "https://kodo.test/" + invocation.getArgument(0));
         when(storage.normalizeKey(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(mailService.enqueueReviewResult(anyString(), anyString(), any())).thenReturn(true);
+        when(mailService.enqueueThankYou(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @Test

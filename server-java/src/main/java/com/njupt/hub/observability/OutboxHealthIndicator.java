@@ -30,7 +30,7 @@ public class OutboxHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         long pending = outbox.pendingCount();
-        LocalDateTime oldest = outbox.oldestDue();
+        LocalDateTime oldest = outbox.oldestCreatedAt();
         long ageSeconds = oldest == null ? 0
             : Math.max(Duration.between(oldest, LocalDateTime.now(ZoneOffset.UTC)).toSeconds(), 0);
 

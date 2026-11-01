@@ -25,6 +25,9 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     profiles: ["demo"]
+    environment:
+      RABBITMQ_DEFAULT_USER: njupt
+      RABBITMQ_DEFAULT_PASS: njupt
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -59,6 +62,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-32-bytes}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1}
       SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: njupt
+      SPRING_RABBITMQ_PASSWORD: njupt
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
@@ -89,6 +94,9 @@ services:
       - "3006:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./demo/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./demo/grafana/dashboards:/etc/grafana/dashboards:ro
 
 volumes:
   java_mysql_data:

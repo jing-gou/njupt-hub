@@ -28,7 +28,7 @@ public class OutboxDispatcher {
     public OutboxDispatcher(
         MailOutboxMapper outbox,
         MailSender sender,
-        @Value("${mail.outbox.max-attempts:5}") int maxAttempts,
+        @Value("${mail.outbox.max-attempts:20}") int maxAttempts,
         @Value("${mail.outbox.batch-size:20}") int batchSize,
         @Value("${mail.outbox.base-backoff:1m}") Duration baseBackoff,
         MeterRegistry meterRegistry
@@ -107,10 +107,10 @@ public class OutboxDispatcher {
     }
 
     private Duration backoff(int attempts) {
-        long multiplier = 1L << Math.min(Math.max(attempts - 1, 0), 6);
+        long multiplier = 1L << Math.min(Math.max(attempts - 1, 0), 12);
         Duration candidate = baseBackoff.multipliedBy(multiplier);
-        return candidate.compareTo(Duration.ofMinutes(60)) > 0
-            ? Duration.ofMinutes(60)
+        return candidate.compareTo(Duration.ofHours(6)) > 0
+            ? Duration.ofHours(6)
             : candidate;
     }
 

@@ -66,3 +66,16 @@ curl -s http://localhost:13000/health
 ```
 
 compose 中 Java 暴露在 `:13000`（容器内 3000），MySQL 在 `:3307`，Redis 在 `:6380`。本地 compose 的 `JWT_SECRET` 有开发默认值，生产必须通过环境变量覆盖。
+
+## Demo：异步邮件与可观测性
+
+```bash
+SPRING_PROFILES_ACTIVE=demo docker compose -f ../docker-compose.java.yml --profile demo up -d
+```
+
+- Mailpit：http://localhost:8025
+- RabbitMQ 管理台：http://localhost:15672（njupt / njupt）
+- Prometheus：http://localhost:9090
+- Grafana：http://localhost:3006（admin / admin，预置 outbox dashboard）
+
+`demo` profile 只用于演示/压测；生产不启动 RabbitMQ、Prometheus、Grafana。

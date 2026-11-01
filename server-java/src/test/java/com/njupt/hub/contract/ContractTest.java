@@ -99,6 +99,8 @@ class ContractTest extends FullStackTestBase {
             "https://kodo.test/" + invocation.getArgument(0));
         when(storage.rawUrl(anyString())).thenAnswer(invocation ->
             "https://kodo.test/" + invocation.getArgument(0));
+        when(resourceMailSender.enqueueReviewResult(anyString(), anyString(), any())).thenReturn(true);
+        when(resourceMailSender.enqueueThankYou(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @ParameterizedTest(name = "{0}")

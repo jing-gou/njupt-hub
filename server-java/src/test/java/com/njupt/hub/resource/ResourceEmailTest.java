@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,6 +56,7 @@ class ResourceEmailTest extends FullStackTestBase {
     void setUp() {
         redis.getConnectionFactory().getConnection().serverCommands().flushDb();
         seeder.apply(List.of("users.sql", "resources.sql"));
+        when(mailService.enqueueThankYou(anyString(), anyString(), anyList())).thenReturn(true);
     }
 
     @Test

@@ -306,6 +306,7 @@ public class ResourceService {
             notification);
     }
 
+    @Transactional
     public ThankYouResult sendThankYou(long userId, List<Long> resourceIds, String ip) {
         if (!rateLimiter.tryAcquire("thank-you", ip == null ? "unknown" : ip,
             10, Duration.ofMinutes(15))) {
@@ -409,7 +410,11 @@ public class ResourceService {
         }
 
         try {
-            resourceMailSender.enqueueReviewResult(uploader.getEmail(), uploader.getUsername(), resource);
+            boolean enqueued = resourceMailSender.enqueueReviewResult(
+                uploader.getEmail(), uploader.getUsername(), resource);
+            if (!enqueued) {
+                return new ReviewNotification(false, false, true, "already_sent", null);
+            }
             LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             resources.update(null, new LambdaUpdateWrapper<Resource>()
                 .eq(Resource::getId, resource.getId())

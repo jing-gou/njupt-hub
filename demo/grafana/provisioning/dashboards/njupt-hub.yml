@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: NJUPT Hub
+    orgId: 1
+    folder: NJUPT Hub
+    type: file
+    disableDeletion: true
+    options:
+      path: /etc/grafana/dashboards

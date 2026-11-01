@@ -3,6 +3,7 @@ package com.njupt.hub.mail.outbox;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +32,12 @@ public class OutboxService {
         row.setNextAttemptAt(now);
         row.setCreatedAt(now);
 
-        return outbox.insertIgnore(row) > 0 ? row.getId() : null;
+        try {
+            outbox.insert(row);
+            return row.getId();
+        } catch (DuplicateKeyException ex) {
+            return null;
+        }
     }
 
     @Transactional

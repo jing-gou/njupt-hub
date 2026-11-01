@@ -3,31 +3,21 @@ package com.njupt.hub.mail.outbox;
 import java.util.List;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface MailOutboxMapper extends BaseMapper<MailOutbox> {
 
-    @Insert("""
-        INSERT IGNORE INTO mail_outbox
-          (dedupe_key, mail_type, recipient, subject, body_text, body_html,
-           status, attempts, next_attempt_at, created_at)
-        VALUES
-          (#{dedupeKey}, #{mailType}, #{recipient}, #{subject}, #{bodyText}, #{bodyHtml},
-           #{status}, #{attempts}, #{nextAttemptAt}, #{createdAt})
-        """)
-    @Options(useGeneratedKeys = true, keyProperty = "id")
-    int insertIgnore(MailOutbox row);
-
     @Select("SELECT COUNT(*) FROM mail_outbox WHERE status IN ('PENDING', 'RETRY', 'PROCESSING')")
     long pendingCount();
 
-    @Select("SELECT MIN(next_attempt_at) FROM mail_outbox WHERE status IN ('PENDING', 'RETRY', 'PROCESSING')")
-    java.time.LocalDateTime oldestDue();
+    @Select("SELECT MIN(created_at) FROM mail_outbox WHERE status IN ('PENDING', 'RETRY', 'PROCESSING', 'DEAD')")
+    java.time.LocalDateTime oldestCreatedAt();
+
+    @Select("SELECT COUNT(*) FROM mail_outbox WHERE status = 'DEAD'")
+    long deadCount();
 
     @Select("""
         SELECT id, dedupe_key AS dedupeKey, mail_type AS mailType, recipient, subject,
