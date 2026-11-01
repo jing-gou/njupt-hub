@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NJUPT Hub - 正在维护</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at 50% 35%, #dbeafe 0, #f8fafc 45%, #eef2ff 100%);
+      color: #0f172a;
+    }
+    main { width: min(560px, calc(100% - 40px)); text-align: center; }
+    .icon {
+      width: 92px; height: 92px; margin: 0 auto 30px; border-radius: 24px;
+      display: grid; place-items: center; background: rgba(255,255,255,.9);
+      color: #2563eb; box-shadow: 0 18px 45px rgba(37,99,235,.18);
+      font-size: 46px; animation: pulse 2s ease-in-out infinite;
+    }
+    h1 { margin: 0; font-size: clamp(34px, 7vw, 58px); letter-spacing: .08em; }
+    h2 {
+      margin: 10px 0 0; font-size: clamp(24px, 5vw, 38px); letter-spacing: .18em;
+      background: linear-gradient(90deg, #2563eb, #db2777);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    p { margin: 28px auto 34px; line-height: 1.8; color: #475569; }
+    button {
+      border: 0; border-radius: 14px; padding: 14px 30px; cursor: pointer;
+      color: #fff; background: #2563eb; font-size: 16px; font-weight: 600;
+      box-shadow: 0 12px 28px rgba(37,99,235,.28);
+    }
+    @keyframes pulse { 50% { transform: translateY(-5px) scale(1.03); } }
+    @media (prefers-color-scheme: dark) {
+      body { background: radial-gradient(circle at 50% 35%, #172554 0, #020617 55%, #0f172a 100%); color: #e2e8f0; }
+      .icon { background: rgba(30,41,59,.85); color: #60a5fa; }
+      p { color: #94a3b8; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon" aria-hidden="true">🏗️</div>
+    <h1>NJUPT Hub</h1>
+    <h2>正在维护</h2>
+    <p>为了给你带来更好的体验，我们正在对后台进行技术维护。<br>请稍后刷新页面。</p>
+    <button type="button" onclick="window.location.reload()">刷新</button>
+  </main>
+</body>
+</html>
