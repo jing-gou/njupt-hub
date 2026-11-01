@@ -23,6 +23,12 @@ public interface MailOutboxMapper extends BaseMapper<MailOutbox> {
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insertIgnore(MailOutbox row);
 
+    @Select("SELECT COUNT(*) FROM mail_outbox WHERE status IN ('PENDING', 'RETRY', 'PROCESSING')")
+    long pendingCount();
+
+    @Select("SELECT MIN(next_attempt_at) FROM mail_outbox WHERE status IN ('PENDING', 'RETRY', 'PROCESSING')")
+    java.time.LocalDateTime oldestDue();
+
     @Select("""
         SELECT id, dedupe_key AS dedupeKey, mail_type AS mailType, recipient, subject,
                body_text AS bodyText, body_html AS bodyHtml, status, attempts,

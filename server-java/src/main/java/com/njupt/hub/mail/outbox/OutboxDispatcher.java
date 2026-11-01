@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -22,19 +23,22 @@ public class OutboxDispatcher {
     private final int maxAttempts;
     private final int batchSize;
     private final Duration baseBackoff;
+    private final MeterRegistry meterRegistry;
 
     public OutboxDispatcher(
         MailOutboxMapper outbox,
         MailSender sender,
         @Value("${mail.outbox.max-attempts:5}") int maxAttempts,
         @Value("${mail.outbox.batch-size:20}") int batchSize,
-        @Value("${mail.outbox.base-backoff:1m}") Duration baseBackoff
+        @Value("${mail.outbox.base-backoff:1m}") Duration baseBackoff,
+        MeterRegistry meterRegistry
     ) {
         this.outbox = outbox;
         this.sender = sender;
         this.maxAttempts = maxAttempts;
         this.batchSize = batchSize;
         this.baseBackoff = baseBackoff;
+        this.meterRegistry = meterRegistry;
     }
 
     @Scheduled(fixedDelayString = "${mail.outbox.poll-interval:5000}")
@@ -79,6 +83,7 @@ public class OutboxDispatcher {
             row.setSentAt(now);
             row.setLastError(null);
             outbox.updateById(row);
+            meterRegistry.counter("mail_outbox_sent_total").increment();
             return "SENT";
         } catch (RuntimeException ex) {
             int attempts = (row.getAttempts() == null ? 0 : row.getAttempts()) + 1;
@@ -88,6 +93,7 @@ public class OutboxDispatcher {
                 row.setStatus(OutboxStatus.DEAD.name());
                 log.error("Mail outbox {} moved to DEAD after {} attempts", row.getId(), attempts, ex);
                 outbox.updateById(row);
+                meterRegistry.counter("mail_outbox_dead_total").increment();
                 return "DEAD";
             }
 
@@ -95,6 +101,7 @@ public class OutboxDispatcher {
             row.setNextAttemptAt(now.plus(backoff(attempts)));
             log.warn("Mail outbox {} failed (attempt {}), retry later", row.getId(), attempts, ex);
             outbox.updateById(row);
+            meterRegistry.counter("mail_outbox_retry_total").increment();
             return "RETRY";
         }
     }
