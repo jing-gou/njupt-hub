@@ -16,7 +16,7 @@ DIFF_FILE="$ARTIFACT_DIR/smoke-diff.txt"
 STATUS=0
 
 normalize() {
-  jq -S -f "$SCRIPT_DIR/normalize-json.jq" "$1" 2>/dev/null || cat "$1"
+  python3 "$SCRIPT_DIR/normalize-json.py" "$1"
 }
 
 fetch() {
@@ -98,7 +98,7 @@ check_meta() {
     echo "FAIL meta: Java status $java_status, expected 501/404 (no fake success)" >&2
     STATUS=1
   fi
-  if ! jq -e '.message' "$java_body" >/dev/null 2>&1; then
+  if ! python3 -c 'import json,sys; assert json.load(open(sys.argv[1])).get("message")' "$java_body"; then
     echo "FAIL meta: Java response has no explicit message" >&2
     STATUS=1
   fi

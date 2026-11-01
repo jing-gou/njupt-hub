@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NORMALIZER="$DIR/../normalize-json.jq"
+NORMALIZER="$DIR/../normalize-json.py"
 diff -u \
-  <(jq -S -f "$NORMALIZER" "$DIR/normalize-node.json") \
-  <(jq -S -f "$NORMALIZER" "$DIR/normalize-java.json")
+  <(python3 "$NORMALIZER" "$DIR/normalize-node.json") \
+  <(python3 "$NORMALIZER" "$DIR/normalize-java.json")
