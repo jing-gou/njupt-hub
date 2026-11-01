@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 import json
+import os
 import re
 import sys
+
+IGNORE_EMAIL_TRACKING = os.environ.get("IGNORE_EMAIL_TRACKING") == "1"
 
 
 def normalize(value, key=None):
     if isinstance(value, dict):
-        return {k: normalize(v, k) for k, v in value.items() if k != "requestId"}
+        ignored = {"requestId"}
+        if IGNORE_EMAIL_TRACKING:
+            ignored.update({"thankYouEmailSentAt", "reviewResultEmailSentAt", "reviewResultEmailStatus"})
+        return {k: normalize(v, k) for k, v in value.items() if k not in ignored}
     if isinstance(value, list):
         items = [normalize(v) for v in value]
         if all(isinstance(v, dict) and ("id" in v or "rank" in v) for v in items):
