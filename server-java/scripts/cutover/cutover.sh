@@ -109,10 +109,14 @@ curl -fsS "$PUBLIC_BASE/" >/dev/null 2>&1 || {
   echo "PUBLIC_BASE is unreachable: $PUBLIC_BASE" >&2
   exit 1
 }
-(
-  cd "$REPO_ROOT"
-  "${COMPOSE[@]}" -f docker-compose.prod-java.yml build java
-)
+if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
+  (
+    cd "$REPO_ROOT"
+    "${COMPOSE[@]}" -f docker-compose.prod-java.yml build java
+  )
+else
+  docker image inspect njupt-hub-prod-java-java:latest >/dev/null
+fi
 
 BACKUP_DIR="$NGINX_BACKUP_DIR" "$SCRIPT_DIR/maintenance-on.sh"
 MAINT_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' "$PUBLIC_BASE/" || true)"
@@ -145,7 +149,7 @@ fi
 
 (
   cd "$REPO_ROOT"
-  "${COMPOSE[@]}" -f docker-compose.prod-java.yml up -d
+  "${COMPOSE[@]}" -f docker-compose.prod-java.yml up -d --no-build
 )
 
 for _ in $(seq 1 60); do
