@@ -3,6 +3,7 @@ package com.njupt.hub.mail.outbox;
 import java.time.LocalDateTime;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
@@ -11,17 +12,29 @@ public class MailOutbox {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+    @TableField("dedupe_key")
     private String dedupeKey;
+    @TableField("mail_type")
     private String mailType;
+    @TableField("recipient")
     private String recipient;
+    @TableField("subject")
     private String subject;
+    @TableField("body_text")
     private String bodyText;
+    @TableField("body_html")
     private String bodyHtml;
+    @TableField("status")
     private String status;
+    @TableField("attempts")
     private Integer attempts;
+    @TableField("next_attempt_at")
     private LocalDateTime nextAttemptAt;
+    @TableField("sent_at")
     private LocalDateTime sentAt;
+    @TableField("last_error")
     private String lastError;
+    @TableField("created_at")
     private LocalDateTime createdAt;
 
     public Long getId() { return id; }

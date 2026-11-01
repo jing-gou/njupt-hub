@@ -24,7 +24,11 @@ public interface MailOutboxMapper extends BaseMapper<MailOutbox> {
     int insertIgnore(MailOutbox row);
 
     @Select("""
-        SELECT * FROM mail_outbox
+        SELECT id, dedupe_key AS dedupeKey, mail_type AS mailType, recipient, subject,
+               body_text AS bodyText, body_html AS bodyHtml, status, attempts,
+               next_attempt_at AS nextAttemptAt, sent_at AS sentAt, last_error AS lastError,
+               created_at AS createdAt
+        FROM mail_outbox
         WHERE status IN ('PENDING', 'RETRY') AND next_attempt_at <= NOW(3)
         ORDER BY id
         LIMIT #{limit}
@@ -33,7 +37,11 @@ public interface MailOutboxMapper extends BaseMapper<MailOutbox> {
     List<MailOutbox> lockDue(@Param("limit") int limit);
 
     @Select("""
-        SELECT * FROM mail_outbox
+        SELECT id, dedupe_key AS dedupeKey, mail_type AS mailType, recipient, subject,
+               body_text AS bodyText, body_html AS bodyHtml, status, attempts,
+               next_attempt_at AS nextAttemptAt, sent_at AS sentAt, last_error AS lastError,
+               created_at AS createdAt
+        FROM mail_outbox
         WHERE id = #{id}
         FOR UPDATE
         """)

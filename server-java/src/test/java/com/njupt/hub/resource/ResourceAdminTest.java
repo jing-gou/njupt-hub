@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.ResourceMailSender;
 import com.njupt.hub.contract.ContractSeeder;
 import com.njupt.hub.resource.storage.QiniuStorage;
 import com.njupt.hub.support.FullStackTestBase;
@@ -56,7 +56,7 @@ class ResourceAdminTest extends FullStackTestBase {
     QiniuStorage storage;
 
     @MockitoBean
-    MailService mailService;
+    ResourceMailSender mailService;
 
     @BeforeEach
     void setUp() {
@@ -115,7 +115,7 @@ class ResourceAdminTest extends FullStackTestBase {
         Integer afterRepeat = jdbc.queryForObject(
             "SELECT experience FROM `User` WHERE id = 1002", Integer.class);
         assertThat(afterRepeat).isEqualTo(90);
-        verify(mailService, times(1)).sendResourceReviewResultEmail(anyString(), anyString(), any());
+        verify(mailService, times(1)).enqueueReviewResult(anyString(), anyString(), any());
     }
 
     @Test

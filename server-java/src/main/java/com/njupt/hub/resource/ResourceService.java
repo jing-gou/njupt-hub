@@ -16,7 +16,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.njupt.hub.auth.avatar.QiniuUrlSigner;
 import com.njupt.hub.auth.limit.RateLimiter;
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.ResourceMailSender;
 import com.njupt.hub.auth.user.GuestUserService;
 import com.njupt.hub.auth.user.User;
 import com.njupt.hub.auth.user.UserMapper;
@@ -40,7 +40,7 @@ public class ResourceService {
     private final UserMapper users;
     private final QiniuUrlSigner signer;
     private final QiniuStorage storage;
-    private final MailService mailService;
+    private final ResourceMailSender resourceMailSender;
     private final RateLimiter rateLimiter;
     private final GuestUserService guestUserService;
 
@@ -49,7 +49,7 @@ public class ResourceService {
         UserMapper users,
         QiniuUrlSigner signer,
         QiniuStorage storage,
-        MailService mailService,
+        ResourceMailSender resourceMailSender,
         RateLimiter rateLimiter,
         GuestUserService guestUserService
     ) {
@@ -57,7 +57,7 @@ public class ResourceService {
         this.users = users;
         this.signer = signer;
         this.storage = storage;
-        this.mailService = mailService;
+        this.resourceMailSender = resourceMailSender;
         this.rateLimiter = rateLimiter;
         this.guestUserService = guestUserService;
     }
@@ -301,11 +301,9 @@ public class ResourceService {
                 .setSql("experience = experience + 10"));
         }
 
-        return new StatusResult(toView(resource, users.selectById(resource.getUploaderId())), null);
-    }
-
-    public ReviewNotification notifyReviewResult(long id, String status) {
-        return maybeSendReviewResultEmail(findResource(id), status);
+        ReviewNotification notification = maybeSendReviewResultEmail(resource, status);
+        return new StatusResult(toView(resource, users.selectById(resource.getUploaderId())),
+            notification);
     }
 
     public ThankYouResult sendThankYou(long userId, List<Long> resourceIds, String ip) {
@@ -344,7 +342,7 @@ public class ResourceService {
         }
 
         try {
-            mailService.sendUploadThankYouEmail(
+            resourceMailSender.enqueueThankYou(
                 uploader.getEmail(), uploader.getUsername(), resourcesToMail);
         } catch (RuntimeException ex) {
             log.error("Failed to send thank-you email for user {}", userId, ex);
@@ -411,7 +409,7 @@ public class ResourceService {
         }
 
         try {
-            mailService.sendResourceReviewResultEmail(uploader.getEmail(), uploader.getUsername(), resource);
+            resourceMailSender.enqueueReviewResult(uploader.getEmail(), uploader.getUsername(), resource);
             LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             resources.update(null, new LambdaUpdateWrapper<Resource>()
                 .eq(Resource::getId, resource.getId())

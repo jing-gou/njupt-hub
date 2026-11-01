@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.ResourceMailSender;
 import com.njupt.hub.contract.ContractSeeder;
 import com.njupt.hub.support.FullStackTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +49,7 @@ class ResourceEmailTest extends FullStackTestBase {
     ObjectMapper mapper;
 
     @MockitoBean
-    MailService mailService;
+    ResourceMailSender mailService;
 
     @BeforeEach
     void setUp() {
@@ -69,7 +69,7 @@ class ResourceEmailTest extends FullStackTestBase {
             .andExpect(jsonPath("$.emailSent").value(true))
             .andExpect(jsonPath("$.resourceCount").value(2));
 
-        verify(mailService).sendUploadThankYouEmail(eq("alice@example.com"), eq("alice"), anyList());
+        verify(mailService).enqueueThankYou(eq("alice@example.com"), eq("alice"), anyList());
 
         Integer marked = jdbc.queryForObject(
             "SELECT COUNT(*) FROM `Resource` WHERE id IN (2001,2003) "
@@ -88,7 +88,7 @@ class ResourceEmailTest extends FullStackTestBase {
     void mail_failure_returns_502() throws Exception {
         String token = login("alice", "Password123");
         doThrow(new IllegalStateException("smtp down"))
-            .when(mailService).sendUploadThankYouEmail(anyString(), anyString(), anyList());
+            .when(mailService).enqueueThankYou(anyString(), anyString(), anyList());
 
         mvc.perform(post("/api/resources/upload/thank-you")
                 .header("Authorization", "Bearer " + token)

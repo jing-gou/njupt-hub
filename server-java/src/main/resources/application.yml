@@ -80,7 +80,7 @@ logging:
 
 mybatis-plus:
   configuration:
-    map-underscore-to-camel-case: true
+    map-underscore-to-camel-case: false
   global-config:
     db-config:
       table-underline: false

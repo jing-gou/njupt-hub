@@ -129,11 +129,10 @@ public class ResourceController {
         long resourceId = parseId(id);
         String status = request == null ? null : request.status();
         StatusResult result = resourceService.updateStatus(resourceId, status);
-        ReviewNotification notification = resourceService.notifyReviewResult(resourceId, status);
         Map<String, Object> body = objectMapper.convertValue(
             result.resource(), new TypeReference<>() {
             });
-        body.put("reviewNotification", notification);
+        body.put("reviewNotification", result.notification());
         return ResponseEntity.ok(body);
     }
 
