@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-: "${BASE_NODE:?BASE_NODE is required}"
+BASE_NODE="${BASE_NODE-}"
 : "${BASE_JAVA:?BASE_JAVA is required}"
 : "${SMOKE_RESOURCE_ID:?SMOKE_RESOURCE_ID is required}"
 : "${SMOKE_REVIEW_ITEM_ID:?SMOKE_REVIEW_ITEM_ID is required}"
@@ -32,17 +32,25 @@ fetch() {
 }
 
 check() {
-  local name="$1" path="$2" token="${3:-}" expected="${4:-}"
+  local name="$1" path="$2" token="${3:-}" expected="${4:-200}"
   local node_body="$ARTIFACT_DIR/${name}.node.json"
   local java_body="$ARTIFACT_DIR/${name}.java.json"
   local node_status java_status
-  node_status="$(fetch "$BASE_NODE" "$path" "$token" "$node_body")" || {
-    echo "FAIL $name: Node connection failed" >&2
+  java_status="$(fetch "$BASE_JAVA" "$path" "$token" "$java_body")" || {
+    echo "FAIL $name: Java connection failed" >&2
     STATUS=1
     return
   }
-  java_status="$(fetch "$BASE_JAVA" "$path" "$token" "$java_body")" || {
-    echo "FAIL $name: Java connection failed" >&2
+  if [[ -z "$BASE_NODE" ]]; then
+    if [[ -n "$expected" && "$java_status" != "$expected" ]]; then
+      echo "FAIL $name: Java status $java_status, expected $expected" >&2
+      STATUS=1
+    fi
+    normalize "$java_body" > "$ARTIFACT_DIR/${name}.java.normalized.json"
+    return
+  fi
+  node_status="$(fetch "$BASE_NODE" "$path" "$token" "$node_body")" || {
+    echo "FAIL $name: Node connection failed" >&2
     STATUS=1
     return
   }
@@ -74,11 +82,13 @@ check_meta() {
   local node_body="$ARTIFACT_DIR/meta.node.json"
   local java_body="$ARTIFACT_DIR/meta.java.json"
   local node_status java_status
-  node_status="$(fetch "$BASE_NODE" "/api/meta/commits" "" "$node_body")" || {
-    echo "FAIL meta: Node connection failed" >&2
-    STATUS=1
-    return
-  }
+  if [[ -n "$BASE_NODE" ]]; then
+    node_status="$(fetch "$BASE_NODE" "/api/meta/commits" "" "$node_body")" || {
+      echo "FAIL meta: Node connection failed" >&2
+      STATUS=1
+      return
+    }
+  fi
   java_status="$(fetch "$BASE_JAVA" "/api/meta/commits" "" "$java_body")" || {
     echo "FAIL meta: Java connection failed" >&2
     STATUS=1
@@ -92,7 +102,7 @@ check_meta() {
     echo "FAIL meta: Java response has no explicit message" >&2
     STATUS=1
   fi
-  if [[ "$node_status" != "200" ]]; then
+  if [[ -n "$BASE_NODE" && "$node_status" != "200" ]]; then
     echo "FAIL meta: Node status $node_status, expected 200 from reference" >&2
     STATUS=1
   fi
