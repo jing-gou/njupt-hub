@@ -37,7 +37,8 @@ FROM `Report` r LEFT JOIN `User` u ON u.id = r.userId WHERE u.id IS NULL;
 
 SELECT 'bad_password_hash' AS metric, COUNT(*) AS value
 FROM `User`
-WHERE password NOT LIKE '$2a$%'
+WHERE username <> '游客'
+  AND password NOT LIKE '$2a$%'
   AND password NOT LIKE '$2b$%'
   AND password NOT LIKE '$2y$%';
 
