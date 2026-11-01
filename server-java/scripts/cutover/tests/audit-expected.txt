@@ -1,0 +1,25 @@
+rows.User	1
+rows.Resource	2
+rows.Review	1
+rows.Like	1
+rows.Reply	1
+rows.Report	1
+rows.ReviewableItem	1
+orphan.Resource.uploaderId	1
+orphan.Review.itemId	0
+orphan.Review.reviewerId	0
+orphan.Like.reviewId	0
+orphan.Like.userId	0
+orphan.Reply.reviewId	0
+orphan.Reply.userId	0
+orphan.Report.reviewId	0
+orphan.Report.userId	0
+bad_password_hash	0
+file_url.local_uploads	1
+file_url.non_http	1
+file_url.legacy_domain	0
+time.min_createdAt	2026-01-02 00:00:00.000
+time.max_createdAt	2026-01-03 00:00:00.000
+BLOCK orphan.Resource.uploaderId=1
+WARN file_url.local_uploads=1
+WARN file_url.non_http=1
