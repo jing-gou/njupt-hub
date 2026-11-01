@@ -11,6 +11,7 @@ fi
 SOURCE_DB="${SOURCE_DB:-njupt_hub}"
 MYSQL_CONTAINER="${MYSQL_CONTAINER-njupt-hub-db-1}"
 NODE_CONTAINER="${NODE_CONTAINER:-njupt-hub-server-1}"
+HOST_NGINX_CONF="${HOST_NGINX_CONF:-/etc/nginx/sites-enabled/njupt-hub}"
 BACKUP_DIR="${BACKUP_DIR:?BACKUP_DIR is required}"
 JAVA_HEALTH="${JAVA_HEALTH:-http://127.0.0.1:13000/health}"
 SMOKE_BASE="${SMOKE_BASE:-http://127.0.0.1:13000}"
@@ -164,6 +165,19 @@ FLYWAY="$("${MYSQL[@]}" -e "SELECT version, success FROM \`$SOURCE_DB\`.\`flyway
 if ! grep -q $'1\t1' <<< "$FLYWAY" || ! grep -q $'2\t1' <<< "$FLYWAY" || ! grep -q $'3\t1' <<< "$FLYWAY"; then
   echo "Flyway history is incomplete: $FLYWAY" >&2
   exit 1
+fi
+
+if [[ -f "$HOST_NGINX_CONF" ]] && grep -q 'proxy_pass http://127.0.0.1:3001;' "$HOST_NGINX_CONF"; then
+  cp -a "$HOST_NGINX_CONF" "$BACKUP_DIR/nginx-host.conf"
+  sed -i 's#proxy_pass http://127.0.0.1:3001;#proxy_pass http://127.0.0.1:13000;#' "$HOST_NGINX_CONF"
+  if ! nginx -t; then
+    cp -a "$BACKUP_DIR/nginx-host.conf" "$HOST_NGINX_CONF"
+    nginx -t || true
+    echo "host nginx config is invalid; restored" >&2
+    exit 1
+  fi
+  nginx -s reload
+  sleep 1
 fi
 
 if [[ "${RUN_SMOKE:-true}" == "true" ]]; then
