@@ -36,7 +36,7 @@ class FlywayBaselinePathTest extends MySqlTestBase {
 
         MigrateResult result = flyway.migrate();
 
-        assertThat(result.migrationsExecuted).isZero();
+        assertThat(result.migrationsExecuted).isEqualTo(1);
 
         try (Connection connection = DriverManager.getConnection(
             legacyUrl, "root", MYSQL.getPassword());
@@ -51,6 +51,12 @@ class FlywayBaselinePathTest extends MySqlTestBase {
                     + "WHERE table_schema = 'legacy_baseline' AND table_name = 'User'");
             assertThat(columnCount.next()).isTrue();
             assertThat(columnCount.getInt(1)).isEqualTo(1);
+
+            var outbox = statement.executeQuery(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                    + "WHERE table_schema = 'legacy_baseline' AND table_name = 'mail_outbox'");
+            assertThat(outbox.next()).isTrue();
+            assertThat(outbox.getInt(1)).isEqualTo(1);
         }
     }
 }
