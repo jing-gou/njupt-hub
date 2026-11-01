@@ -1,0 +1,11 @@
+services:
+  java:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/njupt_hub_rehearsal?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_PROFILES_ACTIVE: rehearsal
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_AUTH: "false"
+      SMTP_STARTTLS: "false"
+      MAIL_OUTBOX_POLL_INTERVAL: "3600000"
