@@ -17,6 +17,11 @@ NODE_HEALTH="${NODE_HEALTH:-http://127.0.0.1:3001/health}"
 NGINX_BACKUP_DIR="${NGINX_BACKUP_DIR:-/tmp/opencode/batch5-nginx}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+else
+  COMPOSE=(docker-compose)
+fi
 BACKUP="$BACKUP_DIR/pre-cutover.sql"
 CHECKSUM="$BACKUP_DIR/pre-cutover.sql.sha256"
 
@@ -52,7 +57,7 @@ BACKUP_DIR="$NGINX_BACKUP_DIR" "$SCRIPT_DIR/maintenance-on.sh"
 
 (
   cd "$REPO_ROOT"
-  docker compose -f docker-compose.prod-java.yml stop java >/dev/null 2>&1 || true
+  "${COMPOSE[@]}" -f docker-compose.prod-java.yml stop java >/dev/null 2>&1 || true
 )
 
 "${MYSQL[@]}" -e "DROP DATABASE IF EXISTS \`$SOURCE_DB\`; CREATE DATABASE \`$SOURCE_DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"

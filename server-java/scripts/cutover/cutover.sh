@@ -18,6 +18,11 @@ PUBLIC_BASE="${PUBLIC_BASE:-http://127.0.0.1:3002}"
 NGINX_BACKUP_DIR="${NGINX_BACKUP_DIR:-/tmp/opencode/batch5-nginx}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+else
+  COMPOSE=(docker-compose)
+fi
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 ARTIFACT_DIR="${ARTIFACT_DIR:-$BACKUP_DIR/rehearsal-$STAMP}"
 
@@ -106,7 +111,7 @@ curl -fsS "$PUBLIC_BASE/" >/dev/null 2>&1 || {
 }
 (
   cd "$REPO_ROOT"
-  docker compose -f docker-compose.prod-java.yml build java
+  "${COMPOSE[@]}" -f docker-compose.prod-java.yml build java
 )
 
 BACKUP_DIR="$NGINX_BACKUP_DIR" "$SCRIPT_DIR/maintenance-on.sh"
@@ -140,7 +145,7 @@ fi
 
 (
   cd "$REPO_ROOT"
-  docker compose -f docker-compose.prod-java.yml up -d
+  "${COMPOSE[@]}" -f docker-compose.prod-java.yml up -d
 )
 
 for _ in $(seq 1 60); do
