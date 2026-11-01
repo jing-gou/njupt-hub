@@ -157,7 +157,7 @@ done
 curl -fsS "$JAVA_HEALTH" >/dev/null || { echo "Java health check failed" >&2; exit 1; }
 
 FLYWAY="$("${MYSQL[@]}" -e "SELECT version, success FROM \`$SOURCE_DB\`.\`flyway_schema_history\` ORDER BY installed_rank" 2>/dev/null || true)"
-if ! grep -q $'1\t1' <<< "$FLYWAY" || ! grep -q $'2\t1' <<< "$FLYWAY"; then
+if ! grep -q $'1\t1' <<< "$FLYWAY" || ! grep -q $'2\t1' <<< "$FLYWAY" || ! grep -q $'3\t1' <<< "$FLYWAY"; then
   echo "Flyway history is incomplete: $FLYWAY" >&2
   exit 1
 fi
