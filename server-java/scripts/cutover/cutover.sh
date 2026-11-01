@@ -168,10 +168,10 @@ if ! grep -q $'1\t1' <<< "$FLYWAY" || ! grep -q $'2\t1' <<< "$FLYWAY" || ! grep 
 fi
 
 if [[ -f "$HOST_NGINX_CONF" ]] && grep -q 'proxy_pass http://127.0.0.1:3001;' "$HOST_NGINX_CONF"; then
-  cp -L "$HOST_NGINX_CONF" "$BACKUP_DIR/nginx-host.conf"
+  cat "$HOST_NGINX_CONF" > "$BACKUP_DIR/nginx-host.conf"
   sed -i 's#proxy_pass http://127.0.0.1:3001;#proxy_pass http://127.0.0.1:13000;#' "$HOST_NGINX_CONF"
   if ! nginx -t; then
-    cp -L "$BACKUP_DIR/nginx-host.conf" "$HOST_NGINX_CONF"
+    cat "$BACKUP_DIR/nginx-host.conf" > "$HOST_NGINX_CONF"
     nginx -t || true
     echo "host nginx config is invalid; restored" >&2
     exit 1
