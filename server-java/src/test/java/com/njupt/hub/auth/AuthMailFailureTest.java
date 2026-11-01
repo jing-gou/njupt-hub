@@ -2,7 +2,7 @@ package com.njupt.hub.auth;
 
 import com.njupt.hub.auth.code.CodeType;
 import com.njupt.hub.auth.code.VerificationCodeStore;
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.SmtpMailService;
 import com.njupt.hub.support.FullStackTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ class AuthMailFailureTest extends FullStackTestBase {
     StringRedisTemplate redis;
 
     @MockitoBean
-    MailService mailService;
+    SmtpMailService mailService;
 
     @BeforeEach
     void cleanRedis() {

@@ -2,7 +2,7 @@ package com.njupt.hub.auth.code;
 
 import java.security.SecureRandom;
 
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.CodeMailSender;
 import com.njupt.hub.common.api.ApiException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -13,9 +13,9 @@ public class VerificationCodeService {
 
     private final SecureRandom random = new SecureRandom();
     private final VerificationCodeStore store;
-    private final MailService mailService;
+    private final CodeMailSender mailService;
 
-    public VerificationCodeService(VerificationCodeStore store, MailService mailService) {
+    public VerificationCodeService(VerificationCodeStore store, CodeMailSender mailService) {
         this.store = store;
         this.mailService = mailService;
     }

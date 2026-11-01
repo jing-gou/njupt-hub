@@ -11,7 +11,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.njupt.hub.auth.code.CodeType;
 import com.njupt.hub.auth.code.VerificationCodeStore;
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.SmtpMailService;
+import com.njupt.hub.auth.mail.ResourceMailSender;
 import com.njupt.hub.resource.storage.QiniuStorage;
 import com.njupt.hub.support.FullStackTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +61,10 @@ class ContractTest extends FullStackTestBase {
     StringRedisTemplate redis;
 
     @MockitoBean
-    MailService mailService;
+    SmtpMailService smtpMailService;
+
+    @MockitoBean
+    ResourceMailSender resourceMailSender;
 
     @MockitoBean
     QiniuStorage storage;
@@ -95,6 +99,8 @@ class ContractTest extends FullStackTestBase {
             "https://kodo.test/" + invocation.getArgument(0));
         when(storage.rawUrl(anyString())).thenAnswer(invocation ->
             "https://kodo.test/" + invocation.getArgument(0));
+        when(resourceMailSender.enqueueReviewResult(anyString(), anyString(), any())).thenReturn(true);
+        when(resourceMailSender.enqueueThankYou(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @ParameterizedTest(name = "{0}")

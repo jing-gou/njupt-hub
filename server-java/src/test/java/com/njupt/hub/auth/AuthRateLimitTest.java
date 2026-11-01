@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.njupt.hub.auth.code.VerificationCodeStore;
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.SmtpMailService;
 import com.njupt.hub.contract.ContractSeeder;
 import com.njupt.hub.support.FullStackTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +38,7 @@ class AuthRateLimitTest extends FullStackTestBase {
     VerificationCodeStore codeStore;
 
     @MockitoBean
-    MailService mailService;
+    SmtpMailService mailService;
 
     @BeforeEach
     void setUp() {

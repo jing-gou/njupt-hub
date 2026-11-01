@@ -2,7 +2,7 @@ package com.njupt.hub.auth.code;
 
 import java.time.Duration;
 
-import com.njupt.hub.auth.mail.MailService;
+import com.njupt.hub.auth.mail.CodeMailSender;
 import com.njupt.hub.common.api.ApiException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 class VerificationCodeServiceTest {
 
     private final VerificationCodeStore store = mock(VerificationCodeStore.class);
-    private final MailService mail = mock(MailService.class);
+    private final CodeMailSender mail = mock(CodeMailSender.class);
     private final VerificationCodeService service = new VerificationCodeService(store, mail);
 
     @Test

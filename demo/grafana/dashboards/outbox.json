@@ -1,0 +1,32 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Outbox pending",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "targets": [{"expr": "mail_outbox_pending", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox oldest age (s)",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "targets": [{"expr": "mail_outbox_oldest_age_seconds", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox sent / retry / dead",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "targets": [
+        {"expr": "rate(mail_outbox_sent_total[5m])", "legendFormat": "sent", "refId": "A"},
+        {"expr": "rate(mail_outbox_retry_total[5m])", "legendFormat": "retry", "refId": "B"},
+        {"expr": "rate(mail_outbox_dead_total[5m])", "legendFormat": "dead", "refId": "C"}
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "title": "NJUPT Hub / Mail Outbox",
+  "uid": "njupt-hub-outbox",
+  "version": 1
+}
