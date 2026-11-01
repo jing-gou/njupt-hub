@@ -1,0 +1,16 @@
+# Batch 5 read-only smoke checklist.
+# Values marked REQUIRED must be supplied for a production rehearsal.
+GET /health
+GET /api/auth/leaderboard
+GET /api/auth/me
+GET /api/resources?status=APPROVED&page=1&pageSize=20
+GET /api/resources/{SMOKE_RESOURCE_ID} REQUIRED
+GET /api/resources/{SMOKE_RESOURCE_ID}/download-url REQUIRED
+GET /api/reviews/items
+GET /api/reviews/items/{SMOKE_REVIEW_ITEM_ID} REQUIRED
+GET /api/reviews/user/stats TOKEN
+GET /api/reviews/admin/reports ADMIN_TOKEN
+GET /api/reviews/admin/pending-reviews ADMIN_TOKEN
+GET /api/meta/commits EXPECT_JAVA_501_OR_404
+GET /api/resources/99999999 EXPECT_404
+GET /api/reviews/items/99999999 EXPECT_404

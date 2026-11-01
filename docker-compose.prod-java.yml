@@ -1,0 +1,63 @@
+name: njupt-hub-prod-java
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - prod_java_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  java:
+    restart: unless-stopped
+    build:
+      context: ./server-java
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/njupt_hub?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      SPRING_PROFILES_ACTIVE: prod
+      JWT_SECRET: ${JWT_SECRET}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,127.0.0.1,::1}
+      QINIU_ACCESS_KEY: ${QINIU_ACCESS_KEY}
+      QINIU_SECRET_KEY: ${QINIU_SECRET_KEY}
+      QINIU_BUCKET: ${QINIU_BUCKET}
+      QINIU_DOMAIN: ${QINIU_DOMAIN}
+      QINIU_LEGACY_DOMAINS: ${QINIU_LEGACY_DOMAINS:-}
+      QINIU_PROTOCOL: ${QINIU_PROTOCOL:-https}
+      QINIU_IS_PRIVATE: ${QINIU_IS_PRIVATE:-false}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      APP_LEGACY_UPLOADS_DIR: /app/uploads
+    volumes:
+      - ${LEGACY_UPLOADS_HOST_DIR:-./server/uploads}:/app/uploads:ro
+    networks:
+      default:
+        aliases:
+          - server
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:13000:3000"
+
+networks:
+  default:
+    external: true
+    name: njupt-hub_default
+
+volumes:
+  prod_java_redis_data:

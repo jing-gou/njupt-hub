@@ -25,6 +25,8 @@ class FlywayBaselinePathTest extends MySqlTestBase {
             statement.execute("CREATE DATABASE legacy_baseline");
             statement.execute(
                 "CREATE TABLE legacy_baseline.`User` (id INT PRIMARY KEY)");
+            statement.execute(
+                "CREATE TABLE legacy_baseline.`Resource` (id INT PRIMARY KEY)");
         }
 
         Flyway flyway = Flyway.configure()
@@ -36,7 +38,7 @@ class FlywayBaselinePathTest extends MySqlTestBase {
 
         MigrateResult result = flyway.migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(1);
+        assertThat(result.migrationsExecuted).isEqualTo(2);
 
         try (Connection connection = DriverManager.getConnection(
             legacyUrl, "root", MYSQL.getPassword());
@@ -51,6 +53,13 @@ class FlywayBaselinePathTest extends MySqlTestBase {
                     + "WHERE table_schema = 'legacy_baseline' AND table_name = 'User'");
             assertThat(columnCount.next()).isTrue();
             assertThat(columnCount.getInt(1)).isEqualTo(1);
+
+            var emailColumns = statement.executeQuery(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                    + "WHERE table_schema = 'legacy_baseline' AND table_name = 'Resource' "
+                    + "AND column_name IN ('thankYouEmailSentAt','reviewResultEmailSentAt','reviewResultEmailStatus')");
+            assertThat(emailColumns.next()).isTrue();
+            assertThat(emailColumns.getInt(1)).isEqualTo(3);
 
             var outbox = statement.executeQuery(
                 "SELECT COUNT(*) FROM information_schema.tables "
