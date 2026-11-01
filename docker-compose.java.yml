@@ -22,6 +22,18 @@ services:
       - "8025:8025"
       - "1025:1025"
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    profiles: ["demo"]
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -46,6 +58,8 @@ services:
       REDIS_PORT: "6379"
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-32-bytes}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       SMTP_SECURE: "false"

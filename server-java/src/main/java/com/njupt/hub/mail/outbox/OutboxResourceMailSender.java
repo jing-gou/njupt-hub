@@ -8,7 +8,9 @@ import java.util.stream.Collectors;
 
 import com.njupt.hub.auth.mail.MailTemplates;
 import com.njupt.hub.auth.mail.ResourceMailSender;
+import com.njupt.hub.mail.outbox.rabbit.RabbitOutboxPublisher;
 import com.njupt.hub.resource.Resource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -16,10 +18,16 @@ public class OutboxResourceMailSender implements ResourceMailSender {
 
     private final OutboxService outbox;
     private final MailTemplates templates;
+    private final ObjectProvider<RabbitOutboxPublisher> rabbitPublisher;
 
-    public OutboxResourceMailSender(OutboxService outbox, MailTemplates templates) {
+    public OutboxResourceMailSender(
+        OutboxService outbox,
+        MailTemplates templates,
+        ObjectProvider<RabbitOutboxPublisher> rabbitPublisher
+    ) {
         this.outbox = outbox;
         this.templates = templates;
+        this.rabbitPublisher = rabbitPublisher;
     }
 
     @Override
@@ -30,13 +38,23 @@ public class OutboxResourceMailSender implements ResourceMailSender {
             .map(String::valueOf)
             .collect(Collectors.joining(","));
         String key = "THANK_YOU:" + userId(resources) + ":" + sha256(ids);
-        return outbox.enqueue(key, "THANK_YOU", to, templates.uploadThankYou(username, resources));
+        Long id = outbox.enqueueAndGetId(key, "THANK_YOU", to, templates.uploadThankYou(username, resources));
+        publish(id);
+        return id != null;
     }
 
     @Override
     public boolean enqueueReviewResult(String to, String username, Resource resource) {
         String key = "RESOURCE_REVIEW:" + resource.getId() + ":" + resource.getStatus();
-        return outbox.enqueue(key, "RESOURCE_REVIEW", to, templates.reviewResult(username, resource));
+        Long id = outbox.enqueueAndGetId(key, "RESOURCE_REVIEW", to, templates.reviewResult(username, resource));
+        publish(id);
+        return id != null;
+    }
+
+    private void publish(Long id) {
+        if (id != null) {
+            rabbitPublisher.ifAvailable(publisher -> publisher.publish(id));
+        }
     }
 
     private String userId(List<Resource> resources) {

@@ -16,7 +16,7 @@ public class OutboxService {
     }
 
     @Transactional
-    public boolean enqueue(String dedupeKey, String mailType, String recipient, RenderedMail mail) {
+    public Long enqueueAndGetId(String dedupeKey, String mailType, String recipient, RenderedMail mail) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         MailOutbox row = new MailOutbox();
@@ -31,6 +31,11 @@ public class OutboxService {
         row.setNextAttemptAt(now);
         row.setCreatedAt(now);
 
-        return outbox.insertIgnore(row) > 0;
+        return outbox.insertIgnore(row) > 0 ? row.getId() : null;
+    }
+
+    @Transactional
+    public boolean enqueue(String dedupeKey, String mailType, String recipient, RenderedMail mail) {
+        return enqueueAndGetId(dedupeKey, mailType, recipient, mail) != null;
     }
 }
